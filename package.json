@@ -1,0 +1,44 @@
+{
+  "name": "sleeper-ff-helper",
+  "version": "1.0.0",
+  "description": "Advanced Sleeper Fantasy Football Analytics & Survival Mode Tracker",
+  "type": "module",
+  "scripts": {
+    "predev": "tsx scripts/auto-sync-uniforms.ts",
+    "dev": "vite --host",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "test": "vitest",
+    "fetch:uniforms": "tsx scripts/fetch-uniforms.ts",
+    "fetch:uniforms:2025": "YEAR=2025 tsx scripts/fetch-uniforms.ts",
+    "sync:fields": "tsx scripts/sync-fields.ts",
+    "uniforms:weekly": "tsx scripts/get-weekly-uniforms.ts",
+    "sync:helmets": "tsx scripts/sync-helmets.ts",
+    "uniforms:sync-week": "tsx scripts/sync-weekly-uniforms.ts",
+    "uniforms:scan-styles": "tsx scripts/scan-team-styles.ts",
+    "uniforms:validate": "tsx scripts/validate-uniforms.ts",
+    "postbuild": "YEAR=$npm_config_year WEEK=$npm_config_week npm run -s uniforms:sync-week || true && npm run -s sync:helmets",
+    "fetch:nflfastr": "tsx scripts/fetch-nflfastr.ts"
+  },
+  "dependencies": {
+    "lucide-react": "^0.294.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "csv-parse": "^5.5.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^14.2.2",
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.16",
+    "jsdom": "^24.0.0",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.3.6",
+    "tsx": "^4.20.6",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.8",
+    "vitest": "^1.5.0"
+  }
+}

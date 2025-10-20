@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Sleeper Token Relay",
+  "version": "1.0.0",
+  "description": "Reads Sleeper session cookie and opens the app with a token parameter.",
+  "permissions": ["cookies", "tabs", "scripting", "activeTab", "storage"],
+  "host_permissions": [
+    "https://sleeper.com/*",
+    "https://*.sleeper.com/*"
+  ],
+  "action": {
+    "default_title": "Send Token to App"
+  },
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "options_page": "options.html"
+}
