@@ -23,3 +23,4 @@
 
 - Updated play-data orchestrator to prioritize SportsDataIO (with ESPN, then Sleeper fallback) and enhanced adapter eligibility checks to avoid unnecessary fetches.
 - Documented ESPN live PBP endpoints (`docs/live-pbp-sources.md`) covering scoreboard, summary, and plays feeds for near-real-time animation.
+
