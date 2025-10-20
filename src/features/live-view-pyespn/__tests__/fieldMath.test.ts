@@ -55,6 +55,41 @@ describe('computeFieldGeometry', () => {
       firstDown: 35,
     });
   });
+
+  it('uses coordinate fallback when yardsToEndzone data is unavailable', () => {
+    const play = basePlay({
+      start: null,
+      end: null,
+      coordinate: { x: 62, y: null },
+      statYardage: null,
+    });
+    const result = computeFieldGeometry(play);
+    expect(result).toEqual({
+      start: 62,
+      end: 62,
+      firstDown: null,
+    });
+  });
+
+  it('clamps geometry when stat yardage pushes beyond field bounds', () => {
+    const play = basePlay({
+      start: {
+        down: 1,
+        distance: 10,
+        yardsToGo: 10,
+        yardsToEndzone: 5,
+        team: { id: 'away', name: 'Away', abbreviation: 'AWY', score: 3 },
+      },
+      end: null,
+      statYardage: 15,
+    });
+    const result = computeFieldGeometry(play);
+    expect(result).toEqual({
+      start: 95,
+      end: 100,
+      firstDown: 100,
+    });
+  });
 });
 
 describe('resolvePossession', () => {
