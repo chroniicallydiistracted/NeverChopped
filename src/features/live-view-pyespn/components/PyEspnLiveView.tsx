@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
+import { DEFAULT_UNIFORM_SEASON } from '../../../constants/uniforms';
+import { getFieldImageInfo } from '../../../constants/fieldTeams';
+import { fetchWeeklyUniforms, getHelmetUrls, type WeeklyUniforms } from '../../../lib/uniforms';
 import type { PyEspnPlay } from '../data/pyespn-types';
 import { usePyEspnGame } from '../data/usePyEspnGame';
 import GameHeader from './GameHeader';
@@ -52,6 +55,7 @@ const PyEspnLiveView = ({ season, seasonType, week, schedule }: PyEspnLiveViewPr
   const [playIndex, setPlayIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeSpeedId, setActiveSpeedId] = useState(speedOptions[1].id);
+  const [uniforms, setUniforms] = useState<WeeklyUniforms | null>(null);
 
   const activeSpeed = useMemo(
     () => speedOptions.find(option => option.id === activeSpeedId) ?? speedOptions[1],
@@ -64,6 +68,33 @@ const PyEspnLiveView = ({ season, seasonType, week, schedule }: PyEspnLiveViewPr
     }
   }, [schedule, selectedGameId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!selectedGameId) {
+      setUniforms(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setUniforms(null);
+    fetchWeeklyUniforms(selectedGameId)
+      .then(result => {
+        if (!cancelled) {
+          setUniforms(result);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setUniforms(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedGameId]);
+
   const { data, loading, error, lastUpdated, refresh } = usePyEspnGame({
     gameId: selectedGameId,
     autoRefresh: true,
@@ -72,6 +103,42 @@ const PyEspnLiveView = ({ season, seasonType, week, schedule }: PyEspnLiveViewPr
 
   const plays = data?.plays ?? [];
   const currentPlay = plays[playIndex] ?? null;
+  const homeTeam = data?.game?.homeTeam ?? null;
+  const awayTeam = data?.game?.awayTeam ?? null;
+  const homeTeamAbbr = homeTeam?.abbreviation ?? null;
+  const awayTeamAbbr = awayTeam?.abbreviation ?? null;
+
+  const homeHelmet = useMemo(() => {
+    if (!homeTeamAbbr) {
+      return null;
+    }
+    const normalized = homeTeamAbbr.toUpperCase();
+    const entry = uniforms?.uniforms?.[normalized];
+    const year = entry?.year ?? uniforms?.year ?? DEFAULT_UNIFORM_SEASON;
+    const style = entry?.style ?? 'A';
+    return getHelmetUrls(year, normalized, style);
+  }, [homeTeamAbbr, uniforms]);
+
+  const awayHelmet = useMemo(() => {
+    if (!awayTeamAbbr) {
+      return null;
+    }
+    const normalized = awayTeamAbbr.toUpperCase();
+    const entry = uniforms?.uniforms?.[normalized];
+    const year = entry?.year ?? uniforms?.year ?? DEFAULT_UNIFORM_SEASON;
+    const style = entry?.style ?? 'A';
+    return getHelmetUrls(year, normalized, style);
+  }, [awayTeamAbbr, uniforms]);
+
+  const fieldAssets = useMemo(() => {
+    const preferredTeam = uniforms?.field?.team ?? homeTeamAbbr ?? awayTeamAbbr ?? null;
+    const info = getFieldImageInfo(preferredTeam);
+    const src = info.src ?? uniforms?.field?.url ?? null;
+    return { src, calib: info.calib };
+  }, [uniforms, homeTeamAbbr, awayTeamAbbr]);
+
+  const homeTeamCode = homeTeamAbbr ?? homeTeam?.name ?? null;
+  const awayTeamCode = awayTeamAbbr ?? awayTeam?.name ?? null;
 
   useEffect(() => {
     if (!plays.length) {
@@ -222,7 +289,14 @@ const PyEspnLiveView = ({ season, seasonType, week, schedule }: PyEspnLiveViewPr
 
     return (
       <div className="space-y-6">
-        <GameHeader game={data?.game ?? null} lastUpdated={lastUpdated} homeScore={homeScore} awayScore={awayScore} />
+        <GameHeader
+          game={data?.game ?? null}
+          lastUpdated={lastUpdated}
+          homeScore={homeScore}
+          awayScore={awayScore}
+          homeHelmet={homeHelmet}
+          awayHelmet={awayHelmet}
+        />
         <PlaybackControls
           isPlaying={isPlaying}
           canStepBackward={playIndex > 0}
@@ -235,7 +309,13 @@ const PyEspnLiveView = ({ season, seasonType, week, schedule }: PyEspnLiveViewPr
           onRefresh={refresh}
         />
         <div className="grid lg:grid-cols-2 gap-6">
-          <FieldAnimationCanvas play={currentPlay} />
+          <FieldAnimationCanvas
+            play={currentPlay}
+            fieldImage={fieldAssets.src}
+            calibration={fieldAssets.calib}
+            homeTeamCode={homeTeamCode}
+            awayTeamCode={awayTeamCode}
+          />
           <PlayList plays={plays} activePlayId={currentPlay?.id ?? null} onSelect={handleSelectPlay} />
         </div>
         <ParticipantStats play={currentPlay} />
