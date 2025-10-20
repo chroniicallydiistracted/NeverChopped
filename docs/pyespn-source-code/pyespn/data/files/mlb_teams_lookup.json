@@ -1,0 +1,196 @@
+{
+    "teams": [
+        {
+            "team_name": "Orioles",
+            "team_city": "Baltimore",
+            "team_id": 1,
+            "team_abbv": "BAL"
+        },
+        {
+            "team_name": "Red Sox",
+            "team_city": "Boston",
+            "team_id": 2,
+            "team_abbv": "BOS"
+        },
+        {
+            "team_name": "Angels",
+            "team_city": "Los Angeles",
+            "team_id": 3,
+            "team_abbv": "LAA"
+        },
+        {
+            "team_name": "White Sox",
+            "team_city": "Chicago",
+            "team_id": 4,
+            "team_abbv": "CHW"
+        },
+        {
+            "team_name": "Guardians",
+            "team_city": "Cleveland",
+            "team_id": 5,
+            "team_abbv": "CLE"
+        },
+        {
+            "team_name": "Tigers",
+            "team_city": "Detroit",
+            "team_id": 6,
+            "team_abbv": "DET"
+        },
+        {
+            "team_name": "Royals",
+            "team_city": "Kansas City",
+            "team_id": 7,
+            "team_abbv": "KC"
+        },
+        {
+            "team_name": "Brewers",
+            "team_city": "Milwaukee",
+            "team_id": 8,
+            "team_abbv": "MIL"
+        },
+        {
+            "team_name": "Twins",
+            "team_city": "Minnesota",
+            "team_id": 9,
+            "team_abbv": "MIN"
+        },
+        {
+            "team_name": "Yankees",
+            "team_city": "New York",
+            "team_id": 10,
+            "team_abbv": "NYY"
+        },
+        {
+            "team_name": "Athletics",
+            "team_city": "Athletics",
+            "team_id": 11,
+            "team_abbv": "ATH"
+        },
+        {
+            "team_name": "Mariners",
+            "team_city": "Seattle",
+            "team_id": 12,
+            "team_abbv": "SEA"
+        },
+        {
+            "team_name": "Rangers",
+            "team_city": "Texas",
+            "team_id": 13,
+            "team_abbv": "TEX"
+        },
+        {
+            "team_name": "Blue Jays",
+            "team_city": "Toronto",
+            "team_id": 14,
+            "team_abbv": "TOR"
+        },
+        {
+            "team_name": "Braves",
+            "team_city": "Atlanta",
+            "team_id": 15,
+            "team_abbv": "ATL"
+        },
+        {
+            "team_name": "Cubs",
+            "team_city": "Chicago",
+            "team_id": 16,
+            "team_abbv": "CHC"
+        },
+        {
+            "team_name": "Reds",
+            "team_city": "Cincinnati",
+            "team_id": 17,
+            "team_abbv": "CIN"
+        },
+        {
+            "team_name": "Astros",
+            "team_city": "Houston",
+            "team_id": 18,
+            "team_abbv": "HOU"
+        },
+        {
+            "team_name": "Dodgers",
+            "team_city": "Los Angeles",
+            "team_id": 19,
+            "team_abbv": "LAD"
+        },
+        {
+            "team_name": "Nationals",
+            "team_city": "Washington",
+            "team_id": 20,
+            "team_abbv": "WSH"
+        },
+        {
+            "team_name": "Mets",
+            "team_city": "New York",
+            "team_id": 21,
+            "team_abbv": "NYM"
+        },
+        {
+            "team_name": "Phillies",
+            "team_city": "Philadelphia",
+            "team_id": 22,
+            "team_abbv": "PHI"
+        },
+        {
+            "team_name": "Pirates",
+            "team_city": "Pittsburgh",
+            "team_id": 23,
+            "team_abbv": "PIT"
+        },
+        {
+            "team_name": "Cardinals",
+            "team_city": "St. Louis",
+            "team_id": 24,
+            "team_abbv": "STL"
+        },
+        {
+            "team_name": "Padres",
+            "team_city": "San Diego",
+            "team_id": 25,
+            "team_abbv": "SD"
+        },
+        {
+            "team_name": "Giants",
+            "team_city": "San Francisco",
+            "team_id": 26,
+            "team_abbv": "SF"
+        },
+        {
+            "team_name": "Rockies",
+            "team_city": "Colorado",
+            "team_id": 27,
+            "team_abbv": "COL"
+        },
+        {
+            "team_name": "Marlins",
+            "team_city": "Miami",
+            "team_id": 28,
+            "team_abbv": "MIA"
+        },
+        {
+            "team_name": "Diamondbacks",
+            "team_city": "Arizona",
+            "team_id": 29,
+            "team_abbv": "ARI"
+        },
+        {
+            "team_name": "Rays",
+            "team_city": "Tampa Bay",
+            "team_id": 30,
+            "team_abbv": "TB"
+        },
+        {
+            "team_name": "All-Stars",
+            "team_city": "American",
+            "team_id": 31,
+            "team_abbv": "AL"
+        },
+        {
+            "team_name": "All-Stars",
+            "team_city": "National",
+            "team_id": 32,
+            "team_abbv": "NL"
+        }
+    ]
+}

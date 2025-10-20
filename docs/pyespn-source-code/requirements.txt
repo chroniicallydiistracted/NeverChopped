@@ -1,0 +1,5 @@
+requests
+click
+pytest
+pytest-check
+tqdm

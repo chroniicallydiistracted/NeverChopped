@@ -1,0 +1,45 @@
+[project]
+name = "pyespn"
+description = "Wrapper for hidden ESPN API"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Zach Stocker", email = "zacharystocker@gmail.com" }]
+license = { text = "MIT" }
+dependencies = [
+    "click>=8.1.8",
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.6.7",
+    "mkdocstrings>=0.29.1",
+    "mkdocstrings-python>=1.16.8",
+    "requests>=2.32.3",
+    "tqdm>=4.67.1",
+]
+classifiers = [
+    # Should be one of:
+    # "Development Status :: 3 - Alpha"
+    "Development Status :: 4 - Beta",
+    # "Development Status :: 5 - Production/Stable"
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    #"Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    #"Programming Language :: Python :: 3.12",
+    #"Operating System :: OS Independent",
+    #"Topic :: Sports :: Football",
+    #"Topic :: Sports :: Basketball"
+]
+dynamic = ["version"]
+[project.urls]
+Repository = "https://github.com/EnderLocke/pyespn"
+[tool.setuptools.dynamic]
+version = { attr = "pyespn.api.version.__version__" }
+[tool.setuptools.packages.find]
+# Only include packages under the 'espn' namespace. Do not include tests,
+# benchmarks, etc.
+include = ["pyespn*"]
+[project.scripts]
+sports-api-urls = "pyespn.bin:get_all_sports_apis"
+[tool.uv]
+[tool.setuptools.package-data]
+pyespn = ["**/*.json"]

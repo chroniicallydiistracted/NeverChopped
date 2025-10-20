@@ -1,0 +1,91 @@
+site_name: PyESPN
+
+nav:
+  - Home: index.md
+  - Install: installing.md
+  - PyESPN: use.md
+  - Sports Available: sports_available.md
+  - Client: pyespn.md
+  - Exceptions: exceptions.md
+  - Classes:
+    - Bet Value: classes/bet_value_class.md
+    - Betting: classes/betting_class.md
+    - Broadcast: classes/broadcast_class.md
+    - Circuit: classes/circuit_class.md
+    - Competition: classes/competition_class.md
+    - Depth Chart: classes/depth_chart_class.md
+    - Draft: classes/draft_class.md
+    - Drive: classes/drive_class.md
+    - Event: classes/event_class.md
+    - Image: classes/image_class.md
+    - Game Odds: classes/game_odds_class.md
+    - Leader: classes/leader_class.md
+    - Leader Category: classes/leader_category_class.md
+    - League: classes/league_class.md
+    - Line: classes/line_class.md
+    - Line Score: classes/line_score_class.md
+    - Manufacturer: classes/manufacturer_class.md
+    - Odds: classes/odds_class.md
+    - Odds Bet365: classes/odds_bet365_class.md
+    - Odds Type: classes/odds_type_class.md
+    - Official: classes/official_class.md
+    - Play: classes/play_class.md
+    - Player: classes/player_class.md
+    - Position: classes/position_class.md
+    - Record: classes/record_class.md
+    - Recruit: classes/recruit_class.md
+    - Schedule: classes/schedule_class.md
+    - Score: classes/score_class.md
+    - Standings: classes/standings_class.md
+    - Stats: classes/stat_class.md
+    - Team: classes/teams_class.md
+    - Venue: classes/venue_class.md
+    - Vehicle: classes/vehicle_class.md
+    - Week: classes/week_class.md
+  - Discover: discover.md
+  - Postman: postman.md
+  - About:
+    - License: LICENSE.md
+
+theme:
+  name: material
+  favicon: img/favicon.ico
+  logo: img/pyespn.png
+  palette:
+    - scheme: default
+      primary: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+  features:
+    - search.suggest
+    - search.highlight
+    - search.share
+    - navigation.footer
+    - content.code.copy
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+
+repo_url: https://github.com/EnderLocke/pyespn
+repo_name: PYESPN
+copyright: Copyright &copy; 2025 Zach Stocker

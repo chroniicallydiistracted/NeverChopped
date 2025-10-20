@@ -1,0 +1,2 @@
+
+::: pyespn.classes.event.Competition
