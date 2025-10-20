@@ -1,9 +1,9 @@
 import type { GameInfo, StandardPlay } from './types';
 import type { PlayDataAdapter } from './adapters/base';
-import { SportsDataIOAdapter } from './adapters/sportsdataio-adapter';
+import { PyESPNAdapter } from './adapters/pyespn-adapter';
 
-const sportsDataAdapter = new SportsDataIOAdapter();
-const ADAPTERS: PlayDataAdapter[] = [sportsDataAdapter];
+const pyespnAdapter = new PyESPNAdapter();
+const ADAPTERS: PlayDataAdapter[] = [pyespnAdapter];
 
 export async function loadPlaysForGame(game: GameInfo): Promise<StandardPlay[]> {
   console.log(`[PlayData Orchestrator] Loading plays for game ${game.gameId} (${game.awayTeam} @ ${game.homeTeam})`);
@@ -31,7 +31,7 @@ export async function loadPlaysForGame(game: GameInfo): Promise<StandardPlay[]> 
     }
   }
 
-  throw new Error('SportsDataIO did not return any play data for this game.');
+  throw new Error('PyESPN did not return any play data for this game.');
 }
 
 function normalizeAndSort(plays: StandardPlay[]): StandardPlay[] {

@@ -33,6 +33,12 @@ export default defineConfig({
         },
         rewrite: (path: string) => path.replace(/^\/api\/sleeper\/graphql/, '/graphql'),
       },
+      // Add proxy for ESPN data API
+      '/api/espn': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        secure: false,
+      },
     },
     hmr: {
       clientPort: 3000, // Ensure HMR works through tunnel
@@ -42,5 +48,20 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true
+  },
+  // Add polyfill configuration for Node.js modules
+  define: {
+    global: 'globalThis',
+  },
+  optimizeDeps: {
+    include: ['util'],
+  },
+  resolve: {
+    alias: {
+      // Provide polyfills for Node.js modules
+      'child_process': 'assert',
+      'fs': 'assert',
+      'path': 'path-browserify',
+    }
   }
 })

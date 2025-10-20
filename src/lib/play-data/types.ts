@@ -97,7 +97,7 @@ export interface StandardPlay {
     successRate: number | null;
   };
 
-  dataSource: 'sportsdataio' | 'espn' | 'sleeper' | 'merged';
+  dataSource: 'espn' | 'sleeper' | 'merged';
   rawData: unknown;
 }
 

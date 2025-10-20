@@ -2,7 +2,7 @@ import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import LiveGameVisualizer from '../LiveGameVisualizer';
 import type { StandardPlay } from '../../lib/play-data/types';
-import type { SportsDataPlay } from '../../lib/play-data/adapters/sportsdataio-adapter';
+
 
 const mocks = vi.hoisted(() => ({
   loadPlaysForGame: vi.fn<[], Promise<StandardPlay[]>>(),
@@ -120,7 +120,7 @@ const createSamplePlays = (): StandardPlay[] => {
     penalties: [],
     playerPositions: undefined,
     metrics: undefined,
-    dataSource: 'sportsdataio',
+    dataSource: 'espn',
     rawData: touchdownRaw,
   };
 

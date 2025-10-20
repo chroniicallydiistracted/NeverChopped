@@ -15,6 +15,7 @@ import {
   SPORT_INFO_QUERY,
 } from '../graphql/queries';
 import LiveGameVisualizer from './LiveGameVisualizer';
+import { fetchEspnSchedule } from '../lib/api/espn-data';
 
 const SleeperFFHelper = () => {
   const auth = useAuth();
@@ -182,6 +183,28 @@ const SleeperFFHelper = () => {
       setTrendingDrops([]);
     }
   };
+
+  const loadNflScheduleFromEspn = async (week: number, year: number) => {
+    try {
+      const schedule = await fetchEspnSchedule(week, year);
+      if (schedule && Array.isArray(schedule)) {
+        // Transform the schedule data to match our expected format
+        const transformedSchedule = schedule.map(game => ({
+          game_id: game.id,
+          week: game.week,
+          status: game.status,
+          date: game.date,
+          home: game.home_team,
+          away: game.away_team,
+        }));
+        setNflSchedule(transformedSchedule);
+      }
+    } catch (err) {
+      console.warn('Failed to load NFL schedule from ESPN:', err);
+      // Fall back to empty schedule if ESPN fails
+      setNflSchedule([]);
+    }
+  };
   
   // Fetch all data for the active league
   const fetchAllData = async (targetLeagueId?: string) => {
@@ -196,6 +219,11 @@ const SleeperFFHelper = () => {
     try {
       setRefreshing(true);
       setError(null);
+
+      // Load NFL schedule from ESPN
+      if (nflState?.week && nflState?.season) {
+        await loadNflScheduleFromEspn(nflState.week, nflState.season);
+      }
 
       const [stateData, leagueDetails, rostersResult, usersResult, playersData] = await Promise.all([
         fetchNflStateData(),
