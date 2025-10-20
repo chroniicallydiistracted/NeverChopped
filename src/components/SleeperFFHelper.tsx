@@ -14,7 +14,7 @@ import {
   MY_LEAGUES_QUERY,
   SPORT_INFO_QUERY,
 } from '../graphql/queries';
-import LiveGameVisualizer from './LiveGameVisualizer';
+import PyEspnLiveView from '../features/live-view-pyespn/components/PyEspnLiveView';
 import { fetchEspnSchedule } from '../lib/api/espn-data';
 
 const SleeperFFHelper = () => {
@@ -1602,12 +1602,11 @@ const SleeperFFHelper = () => {
       <div className="max-w-7xl mx-auto px-4 py-6">
 
         {activeTab === 'livegame' && (
-          <LiveGameVisualizer
+          <PyEspnLiveView
             season={nflState?.season}
             seasonType={nflState?.season_type || nflState?.seasonType}
             week={nflState?.week}
             schedule={Array.isArray(nflSchedule) ? nflSchedule : []}
-            playersById={players || {}}
           />
         )}
         
