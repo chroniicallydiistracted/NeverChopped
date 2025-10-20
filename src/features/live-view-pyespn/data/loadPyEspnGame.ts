@@ -30,30 +30,6 @@ const sanitizeClockValue = (value: unknown): string | number | null => {
   return null;
 };
 
-const normalizeTeam = (team: unknown): PyEspnPlay['team'] => {
-  if (!isRecord(team)) {
-    return null;
-  }
-
-  const id = 'id' in team ? team.id : null;
-  const name = 'name' in team ? team.name : null;
-  const abbreviation = 'abbreviation' in team ? team.abbreviation : null;
-  const scoreRaw = 'score' in team ? team.score : undefined;
-  const numericScore = Number(scoreRaw);
-
-  return {
-    id: typeof id === 'string' || typeof id === 'number' ? id : null,
-    name: typeof name === 'string' ? name : null,
-    abbreviation: typeof abbreviation === 'string' ? abbreviation : null,
-    score:
-      Number.isFinite(numericScore) && numericScore >= 0
-        ? numericScore
-        : typeof scoreRaw === 'number' && Number.isFinite(scoreRaw)
-        ? scoreRaw
-        : null,
-  };
-};
-
 const normalizePlay = (play: unknown): PyEspnPlay | null => {
   if (!isRecord(play)) {
     return null;
@@ -100,19 +76,14 @@ const normalizePlay = (play: unknown): PyEspnPlay | null => {
   const start = isRecord(play.start) ? (play.start as PyEspnPlay['start']) : null;
   const end = isRecord(play.end) ? (play.end as PyEspnPlay['end']) : null;
 
-  const team = normalizeTeam(play.team);
+  const team = isRecord(play.team) ? (play.team as PyEspnPlay['team']) : null;
 
-  const clockRecord = isRecord(play.clock) ? play.clock : null;
-  const displayValue =
-    clockRecord && typeof clockRecord.displayValue === 'string' ? clockRecord.displayValue : null;
-  const fallbackMinutes = displayValue ? displayValue.split(':')[0] : null;
-  const fallbackSeconds = displayValue ? displayValue.split(':')[1] : null;
-
-  const clock = clockRecord
+  const clock = isRecord(play.clock)
     ? {
-        minutes: sanitizeClockValue(clockRecord.minutes ?? fallbackMinutes),
-        seconds: sanitizeClockValue(clockRecord.seconds ?? fallbackSeconds),
-        displayValue,
+        minutes: sanitizeClockValue(play.clock.minutes ?? play.clock.displayValue?.split?.(':')?.[0]),
+        seconds: sanitizeClockValue(play.clock.seconds ?? play.clock.displayValue?.split?.(':')?.[1]),
+        displayValue:
+          typeof play.clock.displayValue === 'string' ? play.clock.displayValue : null,
       }
     : { minutes: null, seconds: null, displayValue: null };
 
@@ -167,8 +138,8 @@ const normalizePayload = (payload: unknown): PyEspnGamePayload | null => {
     status: typeof game.status === 'string' ? game.status : null,
     quarter: Number.isFinite(Number(game.quarter)) ? Number(game.quarter) : null,
     clock: typeof game.clock === 'string' ? game.clock : null,
-    homeTeam: normalizeTeam(game.homeTeam),
-    awayTeam: normalizeTeam(game.awayTeam),
+    homeTeam: isRecord(game.homeTeam) ? (game.homeTeam as PyEspnGamePayload['game']['homeTeam']) : null,
+    awayTeam: isRecord(game.awayTeam) ? (game.awayTeam as PyEspnGamePayload['game']['awayTeam']) : null,
   } as PyEspnGamePayload['game'];
 
   if (!meta.id) {
