@@ -1,0 +1,18 @@
+{
+  "year": "2025",
+  "team": "NYJ",
+  "styles": [
+    "A2",
+    "B2",
+    "C",
+    "D",
+    "E"
+  ],
+  "urls": {
+    "B2": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_NYJ_B2.png",
+    "C": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_NYJ_C.png",
+    "D": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_NYJ_D.png",
+    "A2": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_NYJ_A2.png",
+    "E": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_NYJ_E.png"
+  }
+}

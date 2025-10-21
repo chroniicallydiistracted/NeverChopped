@@ -1,0 +1,20 @@
+{
+  "year": "2025",
+  "team": "SF",
+  "styles": [
+    "A",
+    "A2",
+    "B2",
+    "D",
+    "E",
+    "E2"
+  ],
+  "urls": {
+    "D": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_SF_D.png",
+    "A": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_SF_A.png",
+    "B2": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_SF_B2.png",
+    "A2": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_SF_A2.png",
+    "E2": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_SF_E2.png",
+    "E": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_SF_E.png"
+  }
+}

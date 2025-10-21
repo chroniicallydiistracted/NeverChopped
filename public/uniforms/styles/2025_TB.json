@@ -1,0 +1,20 @@
+{
+  "year": "2025",
+  "team": "TB",
+  "styles": [
+    "A",
+    "B",
+    "C",
+    "D3",
+    "F",
+    "G"
+  ],
+  "urls": {
+    "D3": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_TB_D3.png",
+    "B": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_TB_B.png",
+    "A": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_TB_A.png",
+    "C": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_TB_C.png",
+    "G": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_TB_G.png",
+    "F": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_TB_F.png"
+  }
+}

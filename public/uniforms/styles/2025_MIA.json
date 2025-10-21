@@ -1,0 +1,16 @@
+{
+  "year": "2025",
+  "team": "MIA",
+  "styles": [
+    "A2",
+    "B",
+    "D",
+    "G"
+  ],
+  "urls": {
+    "B": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_MIA_B.png",
+    "D": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_MIA_D.png",
+    "A2": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_MIA_A2.png",
+    "G": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_MIA_G.png"
+  }
+}

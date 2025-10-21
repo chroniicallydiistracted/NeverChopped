@@ -1,0 +1,22 @@
+{
+  "year": "2025",
+  "team": "CIN",
+  "styles": [
+    "A",
+    "A3",
+    "B",
+    "C3",
+    "D3",
+    "F2",
+    "I"
+  ],
+  "urls": {
+    "F2": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_CIN_F2.png",
+    "C3": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_CIN_C3.png",
+    "A": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_CIN_A.png",
+    "I": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_CIN_I.png",
+    "A3": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_CIN_A3.png",
+    "D3": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_CIN_D3.png",
+    "B": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_CIN_B.png"
+  }
+}

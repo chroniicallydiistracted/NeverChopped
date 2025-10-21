@@ -1,0 +1,22 @@
+{
+  "game_id": "2025_LAR-JAX^7",
+  "year": "2025",
+  "week": "7",
+  "away": "LAR",
+  "home": "JAX",
+  "uniforms": {
+    "LAR": {
+      "year": "2025",
+      "style": "C",
+      "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_LAR_C.png"
+    },
+    "JAX": {
+      "year": "2025",
+      "style": "F2",
+      "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_JAX_F2.png"
+    }
+  },
+  "field": {},
+  "source": "https://www.gridiron-uniforms.com/GUD/controller/controller.php?action=high-res-weekly&game_id=2025_LAR-JAX%5E7",
+  "scraped_at": "2025-10-21T01:50:09.333Z"
+}

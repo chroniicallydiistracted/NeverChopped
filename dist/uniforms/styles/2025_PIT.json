@@ -1,0 +1,16 @@
+{
+  "year": "2025",
+  "team": "PIT",
+  "styles": [
+    "A",
+    "D",
+    "G",
+    "H"
+  ],
+  "urls": {
+    "A": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_PIT_A.png",
+    "D": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_PIT_D.png",
+    "H": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_PIT_H.png",
+    "G": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_PIT_G.png"
+  }
+}

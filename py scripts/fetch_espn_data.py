@@ -123,20 +123,18 @@ def fetch_week_games(week, year):
         if schedule:
             for week_schedule in schedule.weeks:
                 if week_schedule.week_number == week:
-                    for event in week_schedule.events:
+                    events = week_schedule.get_events()
+                    for event in events:
                         if not any(g['id'] == event.event_id for g in week_games):
-                            home_competitor = next((c for c in event.competitors if getattr(c, 'home_away', None) == 'home'), None)
-                            away_competitor = next((c for c in event.competitors if getattr(c, 'home_away', None) == 'away'), None)
-
                             week_games.append({
                                 'id': event.event_id,
                                 'week': week_schedule.week_number,
                                 'date': event.date,
-                                'home_team': home_competitor.team.name if home_competitor and home_competitor.team else None,
-                                'away_team': away_competitor.team.name if away_competitor and away_competitor.team else None,
-                                'home_score': home_competitor.score.value if home_competitor and getattr(home_competitor, 'score', None) else None,
-                                'away_score': away_competitor.score.value if away_competitor and getattr(away_competitor, 'score', None) else None,
-                                'status': event.status
+                                'home_team': event.home_team.name if event.home_team else None,
+                                'away_team': event.away_team.name if event.away_team else None,
+                                'home_score': None,  # Will be populated when game is loaded
+                                'away_score': None,  # Will be populated when game is loaded
+                                'status': event.status.type.displayValue if event.status and event.status.type else None
                             })
 
         return week_games

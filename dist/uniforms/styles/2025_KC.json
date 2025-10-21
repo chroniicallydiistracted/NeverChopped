@@ -1,0 +1,14 @@
+{
+  "year": "2025",
+  "team": "KC",
+  "styles": [
+    "A2",
+    "C",
+    "D"
+  ],
+  "urls": {
+    "C": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_KC_C.png",
+    "D": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_KC_D.png",
+    "A2": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_KC_A2.png"
+  }
+}

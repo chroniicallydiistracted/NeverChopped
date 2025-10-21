@@ -1,0 +1,25 @@
+{
+  "game_id": "2025_IND-LAC^7",
+  "year": "2025",
+  "week": "7",
+  "away": "IND",
+  "home": "LAC",
+  "uniforms": {
+    "IND": {
+      "year": "2025",
+      "style": "A2",
+      "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_IND_A2.png"
+    },
+    "LAC": {
+      "year": "2025",
+      "style": "H3",
+      "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_LAC_H3.png"
+    }
+  },
+  "field": {
+    "team": "LAC",
+    "url": "http://gridiron-uniforms.com/fields/images/regular-season/LAC/r1024/LAC_2025^3.png"
+  },
+  "source": "https://www.gridiron-uniforms.com/GUD/controller/controller.php?action=high-res-weekly&game_id=2025_IND-LAC%5E7",
+  "scraped_at": "2025-10-21T01:50:11.506Z"
+}

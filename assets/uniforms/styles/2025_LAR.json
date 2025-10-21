@@ -1,0 +1,20 @@
+{
+  "year": "2025",
+  "team": "LAR",
+  "styles": [
+    "A",
+    "C",
+    "F",
+    "I",
+    "J",
+    "K"
+  ],
+  "urls": {
+    "C": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_LAR_C.png",
+    "K": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_LAR_K.png",
+    "A": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_LAR_A.png",
+    "F": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_LAR_F.png",
+    "I": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_LAR_I.png",
+    "J": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_LAR_J.png"
+  }
+}

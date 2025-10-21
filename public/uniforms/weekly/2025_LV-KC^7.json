@@ -1,0 +1,25 @@
+{
+  "game_id": "2025_LV-KC^7",
+  "year": "2025",
+  "week": "7",
+  "away": "LV",
+  "home": "KC",
+  "uniforms": {
+    "LV": {
+      "year": "2025",
+      "style": "A",
+      "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_LV_A.png"
+    },
+    "KC": {
+      "year": "2025",
+      "style": "D",
+      "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_KC_D.png"
+    }
+  },
+  "field": {
+    "team": "KC",
+    "url": "http://gridiron-uniforms.com/fields/images/regular-season/KC/r1024/KC_2023-2025^1.png"
+  },
+  "source": "https://www.gridiron-uniforms.com/GUD/controller/controller.php?action=high-res-weekly&game_id=2025_LV-KC%5E7",
+  "scraped_at": "2025-10-21T01:50:09.988Z"
+}

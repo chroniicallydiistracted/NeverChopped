@@ -1,0 +1,22 @@
+{
+  "year": "2025",
+  "team": "DEN",
+  "styles": [
+    "A3",
+    "B",
+    "B3",
+    "D2",
+    "D3",
+    "F3",
+    "H"
+  ],
+  "urls": {
+    "A3": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_DEN_A3.png",
+    "F3": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_DEN_F3.png",
+    "D3": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_DEN_D3.png",
+    "H": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_DEN_H.png",
+    "B": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_DEN_B.png",
+    "B3": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_DEN_B3.png",
+    "D2": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_DEN_D2.png"
+  }
+}

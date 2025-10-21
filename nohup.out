@@ -1,0 +1,35 @@
+[1;33m🧹 Cleaning up ports...[0m
+[1;33m🔪 Killing any lingering npm/vite processes...[0m
+[0;32m✅ Cleanup complete![0m
+[1;33m📦 Checking dependencies...[0m
+[1;33m⚠️  Dependencies may be outdated. Running npm install...[0m
+
+up to date, audited 446 packages in 711ms
+
+121 packages are looking for funding
+  run `npm fund` for details
+
+2 moderate severity vulnerabilities
+
+To address all issues, run:
+  npm audit fix
+
+Run `npm audit` for details.
+[1;33m🏈 Starting ESPN API server...[0m
+[1;33m🏈 Starting ESPN API server (foreground)...[0m
+[0;34mESPN API Server:[0m
+  - Local:   [0;32mhttp://localhost:3001[0m
+  - Network: [0;32mhttp://10.255.255.254:3001[0m
+[1;33m🚀 Starting dev server (background)...[0m
+ESPN API server running on port 3001
+[0;32m✅ Dev server started (PID: 8091)[0m
+[0;34mFrontend Access URLs:[0m
+  - Local:   [0;32mhttp://localhost:3000[0m
+  - Network: [0;32mhttp://10.255.255.254:3000[0m
+  - Network: [0;32mhttp://172.23.137.81:3000[0m
+  - External (via tunnel): [0;32mhttps://sleeper.westfam.media[0m
+[1;33mNote:[0m Tunnel must be running separately. This script will not start or stop it.
+[0;34mLogs:[0m tail -f dev.log
+[1;33mPress Ctrl+C to stop both servers[0m
+"cloudflared tunnel run" requires the ID or name of the tunnel to run as the last command line argument or in the configuration file.
+See 'cloudflared tunnel run --help'.

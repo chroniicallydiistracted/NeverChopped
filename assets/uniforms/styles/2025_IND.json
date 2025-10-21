@@ -1,0 +1,16 @@
+{
+  "year": "2025",
+  "team": "IND",
+  "styles": [
+    "A",
+    "A2",
+    "C",
+    "F"
+  ],
+  "urls": {
+    "A": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_IND_A.png",
+    "C": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_IND_C.png",
+    "A2": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_IND_A2.png",
+    "F": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_IND_F.png"
+  }
+}

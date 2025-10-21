@@ -1,0 +1,22 @@
+{
+  "game_id": "2025_SF-HOU^8",
+  "year": "2025",
+  "week": "8",
+  "away": "SF",
+  "home": "HOU",
+  "uniforms": {
+    "SF": {
+      "year": "2025",
+      "style": "A",
+      "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_SF_A.png"
+    },
+    "HOU": {
+      "year": "2025",
+      "style": "J",
+      "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_HOU_J.png"
+    }
+  },
+  "field": {},
+  "source": "https://www.gridiron-uniforms.com/GUD/controller/controller.php?action=high-res-weekly&game_id=2025_SF-HOU%5E8",
+  "scraped_at": "2025-10-21T07:23:37.666Z"
+}

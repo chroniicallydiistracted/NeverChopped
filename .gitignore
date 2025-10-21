@@ -1,7 +1,5 @@
 # Dependencies
 node_modules/
-dist/
-dist-ssr/
 .venv/
 .github/
 
@@ -40,5 +38,4 @@ lerna-debug.log*
 Thumbs.db
 
 # Generated assets
-assets/
-public/
+

@@ -1,0 +1,16 @@
+{
+  "year": "2025",
+  "team": "ARZ",
+  "styles": [
+    "A",
+    "E",
+    "H",
+    "K"
+  ],
+  "urls": {
+    "E": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_ARZ_E.png",
+    "A": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_ARZ_A.png",
+    "K": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_ARZ_K.png",
+    "H": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_ARZ_H.png"
+  }
+}

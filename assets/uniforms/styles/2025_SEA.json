@@ -1,0 +1,18 @@
+{
+  "year": "2025",
+  "team": "SEA",
+  "styles": [
+    "A2",
+    "B",
+    "E",
+    "F",
+    "J"
+  ],
+  "urls": {
+    "F": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_SEA_F.png",
+    "E": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_SEA_E.png",
+    "B": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_SEA_B.png",
+    "J": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_SEA_J.png",
+    "A2": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_SEA_A2.png"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "game_id": "2025_WSH-DAL^7",
+  "year": "2025",
+  "week": "7",
+  "away": "WSH",
+  "home": "DAL",
+  "uniforms": {
+    "WSH": {
+      "year": "2025",
+      "style": "G",
+      "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_WSH_G.png"
+    },
+    "DAL": {
+      "year": "2025",
+      "style": "G",
+      "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_DAL_G.png"
+    }
+  },
+  "field": {
+    "team": "DAL",
+    "url": "http://gridiron-uniforms.com/fields/images/regular-season/DAL/r1024/DAL_2017-2025^1.png"
+  },
+  "source": "https://www.gridiron-uniforms.com/GUD/controller/controller.php?action=high-res-weekly&game_id=2025_WSH-DAL%5E7",
+  "scraped_at": "2025-10-21T01:18:10.980Z"
+}

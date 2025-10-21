@@ -1,0 +1,16 @@
+{
+  "year": "2025",
+  "team": "NYG",
+  "styles": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "urls": {
+    "C": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_NYG_C.png",
+    "A": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_NYG_A.png",
+    "D": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_NYG_D.png",
+    "B": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_NYG_B.png"
+  }
+}

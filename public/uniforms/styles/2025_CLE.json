@@ -1,0 +1,18 @@
+{
+  "year": "2025",
+  "team": "CLE",
+  "styles": [
+    "A",
+    "C",
+    "E",
+    "F",
+    "H"
+  ],
+  "urls": {
+    "A": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_CLE_A.png",
+    "E": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_CLE_E.png",
+    "F": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_CLE_F.png",
+    "C": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_CLE_C.png",
+    "H": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_CLE_H.png"
+  }
+}

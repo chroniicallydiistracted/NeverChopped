@@ -1,0 +1,20 @@
+{
+  "year": "2025",
+  "team": "PHI",
+  "styles": [
+    "A",
+    "B",
+    "C3",
+    "E",
+    "K",
+    "L"
+  ],
+  "urls": {
+    "A": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_PHI_A.png",
+    "E": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_PHI_E.png",
+    "B": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_PHI_B.png",
+    "C3": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_PHI_C3.png",
+    "L": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_PHI_L.png",
+    "K": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_PHI_K.png"
+  }
+}

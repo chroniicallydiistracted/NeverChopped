@@ -1,0 +1,151 @@
+{
+  "year": "2025",
+  "week": "8",
+  "total_games": 13,
+  "games": [
+    {
+      "game_id": "2025_MIN-LAC^8",
+      "away": "MIN",
+      "home": "LAC",
+      "uniforms": {
+        "LAC": {
+          "year": "2025",
+          "style": "J",
+          "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_LAC_J.png"
+        }
+      },
+      "field": {}
+    },
+    {
+      "game_id": "2025_BUF-CAR^8",
+      "away": "BUF",
+      "home": "CAR",
+      "uniforms": {},
+      "field": {}
+    },
+    {
+      "game_id": "2025_CHI-BAL^8",
+      "away": "CHI",
+      "home": "BAL",
+      "uniforms": {
+        "CHI": {
+          "year": "2025",
+          "style": "B",
+          "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_CHI_B.png"
+        }
+      },
+      "field": {}
+    },
+    {
+      "game_id": "2025_CLE-NE^8",
+      "away": "CLE",
+      "home": "NE",
+      "uniforms": {},
+      "field": {}
+    },
+    {
+      "game_id": "2025_MIA-ATL^8",
+      "away": "MIA",
+      "home": "ATL",
+      "uniforms": {},
+      "field": {}
+    },
+    {
+      "game_id": "2025_NYG-PHI^8",
+      "away": "NYG",
+      "home": "PHI",
+      "uniforms": {
+        "NYG": {
+          "year": "2025",
+          "style": "A",
+          "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_NYG_A.png"
+        },
+        "PHI": {
+          "year": "2025",
+          "style": "L",
+          "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_PHI_L.png"
+        }
+      },
+      "field": {}
+    },
+    {
+      "game_id": "2025_NYJ-CIN^8",
+      "away": "NYJ",
+      "home": "CIN",
+      "uniforms": {},
+      "field": {}
+    },
+    {
+      "game_id": "2025_SF-HOU^8",
+      "away": "SF",
+      "home": "HOU",
+      "uniforms": {
+        "SF": {
+          "year": "2025",
+          "style": "A",
+          "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_SF_A.png"
+        },
+        "HOU": {
+          "year": "2025",
+          "style": "J",
+          "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_HOU_J.png"
+        }
+      },
+      "field": {}
+    },
+    {
+      "game_id": "2025_TB-NO^8",
+      "away": "TB",
+      "home": "NO",
+      "uniforms": {},
+      "field": {}
+    },
+    {
+      "game_id": "2025_DAL-DEN^8",
+      "away": "DAL",
+      "home": "DEN",
+      "uniforms": {
+        "DAL": {
+          "year": "2025",
+          "style": "A",
+          "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_DAL_A.png"
+        },
+        "DEN": {
+          "year": "2025",
+          "style": "M",
+          "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_DEN_M.png"
+        }
+      },
+      "field": {}
+    },
+    {
+      "game_id": "2025_TEN-IND^8",
+      "away": "TEN",
+      "home": "IND",
+      "uniforms": {},
+      "field": {}
+    },
+    {
+      "game_id": "2025_GB-PIT^8",
+      "away": "GB",
+      "home": "PIT",
+      "uniforms": {
+        "PIT": {
+          "year": "2025",
+          "style": "H",
+          "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_PIT_H.png"
+        }
+      },
+      "field": {}
+    },
+    {
+      "game_id": "2025_WSH-KC^8",
+      "away": "WSH",
+      "home": "KC",
+      "uniforms": {},
+      "field": {}
+    }
+  ],
+  "scraped_at": "2025-10-21T07:23:39.561Z",
+  "source": "https://www.gridiron-uniforms.com/GUD/controller/controller.php?action=weekly&week=8&year=2025"
+}

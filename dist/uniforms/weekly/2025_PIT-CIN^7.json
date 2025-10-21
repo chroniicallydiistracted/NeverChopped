@@ -1,0 +1,25 @@
+{
+  "game_id": "2025_PIT-CIN^7",
+  "year": "2025",
+  "week": "7",
+  "away": "PIT",
+  "home": "CIN",
+  "uniforms": {
+    "PIT": {
+      "year": "2025",
+      "style": "D",
+      "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_PIT_D.png"
+    },
+    "CIN": {
+      "year": "2025",
+      "style": "B",
+      "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_CIN_B.png"
+    }
+  },
+  "field": {
+    "team": "CIN",
+    "url": "http://gridiron-uniforms.com/fields/images/regular-season/CIN/r1024/CIN_2024-2025^2.png"
+  },
+  "source": "https://www.gridiron-uniforms.com/GUD/controller/controller.php?action=high-res-weekly&game_id=2025_PIT-CIN%5E7",
+  "scraped_at": "2025-10-21T01:18:07.600Z"
+}
