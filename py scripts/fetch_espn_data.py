@@ -13,8 +13,9 @@ def fetch_game_data(game_id):
         # Initialize the ESPN API client for NFL
         espn = pyespn.PYESPN('nfl')
 
-        # Get game data with play-by-play data
-        game_data = espn.get_game_info(game_id, load_play_by_play=True)
+        # Get game data and explicitly load play-by-play information
+        game_data = espn.get_game_info(game_id)
+        game_data.load_play_by_play()
 
         # Extract play data from drives
         plays = []
@@ -32,8 +33,8 @@ def fetch_game_data(game_id):
                             "altText": play.alt_text,
                             "quarter": play.period.number if play.period else 1,
                             "clock": {
-                                "minutes": play.clock.displayValue.split(':')[0] if play.clock and ':' in play.clock.displayValue else 0,
-                                "seconds": play.clock.displayValue.split(':')[1] if play.clock and ':' in play.clock.displayValue else 0,
+                                "minutes": play.clock.get("displayValue", "0:00").split(':')[0] if play.clock else "0",
+                                "seconds": play.clock.get("displayValue", "0:00").split(':')[1] if play.clock else "00",
                             },
                             "homeScore": play.home_score,
                             "awayScore": play.away_score,
@@ -112,30 +113,30 @@ def fetch_week_games(week, year):
         # Initialize the ESPN API client for NFL
         espn = pyespn.PYESPN('nfl')
 
-        # Load season schedule
+        # Load season schedule with the documented league schedule helper
         espn.load_season_schedule(season=year)
 
-        # Extract games for the specific week
+        # Extract games for the specific week from the league schedule cache
         week_games = []
+        schedule = espn.league.schedules.get(year) if hasattr(espn, 'league') else None
 
-        # Check each team's schedule for the specified week
-        for team in espn.teams:
-            # Access team's schedule through the schedule attribute
-            if hasattr(team, 'schedule') and year in team.schedule:
-                for game in team.schedule[year]:
-                    # Check if this game is in the requested week
-                    if hasattr(game, 'week') and game.week == week:
-                        # Add to week games if not already added
-                        if not any(g['id'] == game.id for g in week_games):
+        if schedule:
+            for week_schedule in schedule.weeks:
+                if week_schedule.week_number == week:
+                    for event in week_schedule.events:
+                        if not any(g['id'] == event.event_id for g in week_games):
+                            home_competitor = next((c for c in event.competitors if getattr(c, 'home_away', None) == 'home'), None)
+                            away_competitor = next((c for c in event.competitors if getattr(c, 'home_away', None) == 'away'), None)
+
                             week_games.append({
-                                'id': game.id,
-                                'week': game.week,
-                                'date': str(game.date) if hasattr(game, 'date') else None,
-                                'home_team': game.home_team.name if hasattr(game, 'home_team') else None,
-                                'away_team': game.away_team.name if hasattr(game, 'away_team') else None,
-                                'home_score': game.home_score if hasattr(game, 'home_score') else None,
-                                'away_score': game.away_score if hasattr(game, 'away_score') else None,
-                                'status': game.status if hasattr(game, 'status') else None
+                                'id': event.event_id,
+                                'week': week_schedule.week_number,
+                                'date': event.date,
+                                'home_team': home_competitor.team.name if home_competitor and home_competitor.team else None,
+                                'away_team': away_competitor.team.name if away_competitor and away_competitor.team else None,
+                                'home_score': home_competitor.score.value if home_competitor and getattr(home_competitor, 'score', None) else None,
+                                'away_score': away_competitor.score.value if away_competitor and getattr(away_competitor, 'score', None) else None,
+                                'status': event.status
                             })
 
         return week_games
