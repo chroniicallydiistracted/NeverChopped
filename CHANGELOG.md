@@ -1,5 +1,8 @@
 # Changelog
 
+# 2025-10-27
+- Added a deterministic PyESPN stub plus Vitest coverage for the Python entrypoints and `/api/espn` Express routes so contract regressions are caught without hitting live ESPN services. 【F:tests/espn-api/fakes/pyespn/__init__.py†L1-L142】【F:tests/espn-api/pyespnScripts.test.ts†L1-L53】【F:tests/espn-api/espnApiServer.test.ts†L1-L83】
+
 # 2025-10-26
 - Wired the live PyESPN participant panel to the `/api/espn/player/:playerId` endpoint via a new `useEspnPlayers` hook so play-by-play entries render official ESPN names, positions, team abbreviations, and jersey numbers with graceful loading/error messaging. 【F:src/features/live-view-pyespn/components/ParticipantStats.tsx†L1-L78】【F:src/features/live-view-pyespn/data/useEspnPlayers.ts†L1-L138】
 
