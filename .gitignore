@@ -46,6 +46,7 @@ tmp/
 dev.log
 espn-api.log
 nohup.out
+tests/espn-api/fakes/pyespn/_state*.json
 
 # Runtime pid files
 .dev_server.pid

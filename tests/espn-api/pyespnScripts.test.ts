@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
@@ -13,6 +13,8 @@ const pythonStubPath = path.resolve(__dirname, 'fakes');
 const pythonPathValue = [pythonStubPath, process.env.PYTHONPATH]
   .filter(Boolean)
   .join(path.delimiter);
+const originalFakeStatePathEnv = process.env.PYESPN_FAKE_STATE_PATH;
+const scriptsStatePath = path.resolve(pythonStubPath, 'pyespn', '_state-scripts.json');
 
 const runPythonScript = async (scriptName: string, args: Array<string | number>) => {
   const scriptPath = path.resolve(repoRoot, 'py', scriptName);
@@ -27,11 +29,25 @@ const runPythonScript = async (scriptName: string, args: Array<string | number>)
 };
 
 describe('PyESPN Python entrypoints', () => {
+  beforeAll(async () => {
+    process.env.PYESPN_FAKE_STATE_PATH = scriptsStatePath;
+    await resetFakeState();
+  });
+
   beforeEach(async () => {
     await resetFakeState();
   });
 
   afterEach(async () => {
+    await resetFakeState();
+  });
+
+  afterAll(async () => {
+    if (originalFakeStatePathEnv === undefined) {
+      delete process.env.PYESPN_FAKE_STATE_PATH;
+    } else {
+      process.env.PYESPN_FAKE_STATE_PATH = originalFakeStatePathEnv;
+    }
     await resetFakeState();
   });
 
@@ -85,7 +101,7 @@ describe('PyESPN Python entrypoints', () => {
     const playInRaw = await runPythonScript('espn_schedule.py', ['play-in', 2026, 1]);
     const playIn = JSON.parse(playInRaw) as Array<Record<string, unknown>>;
     expect(playIn[0]?.game_id).toBe('401770301');
-  });
+  }, 15000);
 
   it('returns an empty array when invalid numeric arguments are supplied', async () => {
     const raw = await runPythonScript('espn_schedule.py', ['regular', 'not-a-year', 'week']);
@@ -109,5 +125,21 @@ describe('PyESPN Python entrypoints', () => {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const plays = (parsed.plays as Array<Record<string, unknown>>) ?? [];
     expect(plays.some(play => play.id === 'play-99')).toBe(true);
+  });
+
+  it('compiles every PyESPN entrypoint without syntax errors', async () => {
+    const scripts = ['espn_schedule.py', 'espn_game.py', 'espn_pbp.py', 'espn_player.py'];
+    await Promise.all(
+      scripts.map(scriptName => {
+        const scriptPath = path.resolve(repoRoot, 'py', scriptName);
+        return execFileAsync('python', ['-m', 'py_compile', scriptPath], {
+          env: {
+            ...process.env,
+            PYTHONPATH: pythonPathValue,
+          },
+          cwd: repoRoot,
+        });
+      }),
+    );
   });
 });

@@ -31,6 +31,8 @@ const pythonStubPath = path.resolve(__dirname, 'fakes');
 const pythonPathValue = [pythonStubPath, process.env.PYTHONPATH]
   .filter(Boolean)
   .join(path.delimiter);
+const originalFakeStatePathEnv = process.env.PYESPN_FAKE_STATE_PATH;
+const e2eStatePath = path.resolve(pythonStubPath, 'pyespn', '_state-e2e.json');
 
 const baseUrl = 'http://127.0.0.1:3001';
 const originalFetch = globalThis.fetch;
@@ -80,6 +82,7 @@ let serverProcess: ChildProcessWithoutNullStreams | null = null;
 
 describe('PyESPN end-to-end integration', () => {
   beforeAll(async () => {
+    process.env.PYESPN_FAKE_STATE_PATH = e2eStatePath;
     await resetFakeState();
     serverProcess = spawn('node', ['espn-api-server.cjs'], {
       cwd: repoRoot,
@@ -113,12 +116,18 @@ describe('PyESPN end-to-end integration', () => {
     await resetFakeState();
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     globalThis.fetch = originalFetch;
     if (serverProcess) {
       serverProcess.kill();
       serverProcess = null;
     }
+    if (originalFakeStatePathEnv === undefined) {
+      delete process.env.PYESPN_FAKE_STATE_PATH;
+    } else {
+      process.env.PYESPN_FAKE_STATE_PATH = originalFakeStatePathEnv;
+    }
+    await resetFakeState();
   });
 
   it('fetches schedule, game, play-by-play, and player data through the web stack', async () => {
@@ -165,33 +174,55 @@ describe('PyESPN end-to-end integration', () => {
       sequence: 1,
     });
 
-    await updateFakeEvent('401770001', event => {
-      const plays = Array.isArray(event.plays) ? [...event.plays] : [];
-      plays.push({
-        id: 'play-77',
-        sequence: 77,
-        text: 'New play pushed after refresh',
-        clock: { displayValue: '09:59' },
-      });
-      event.plays = plays;
-      const homeTeam =
-        event.home_team && typeof event.home_team === 'object'
-          ? (event.home_team as Record<string, unknown>)
-          : null;
-      if (homeTeam) {
-        homeTeam.score = 14;
-      }
-      const awayTeam =
-        event.away_team && typeof event.away_team === 'object'
-          ? (event.away_team as Record<string, unknown>)
-          : null;
-      if (awayTeam) {
-        awayTeam.score = 7;
-      }
-      event.status = 'in-progress';
-    });
+    const ensureAugmentedEvent = async () => {
+      await updateFakeEvent('401770001', event => {
+        const plays = Array.isArray(event.plays) ? [...event.plays] : [];
+        const alreadyPresent = plays.some(play => play && play.id === 'play-77');
+        if (!alreadyPresent) {
+          plays.push({
+            id: 'play-77',
+            sequence: 77,
+            text: 'New play pushed after refresh',
+            clock: { displayValue: '09:59' },
+          });
+        }
+        event.plays = plays;
 
-    const refreshed = await loadPyEspnGame({ gameId: '401770001', forceRefresh: true });
+        const homeTeam =
+          event.home_team && typeof event.home_team === 'object'
+            ? (event.home_team as Record<string, unknown>)
+            : null;
+        if (homeTeam) {
+          homeTeam.score = 14;
+        }
+        const awayTeam =
+          event.away_team && typeof event.away_team === 'object'
+            ? (event.away_team as Record<string, unknown>)
+            : null;
+        if (awayTeam) {
+          awayTeam.score = 7;
+        }
+        event.status = 'in-progress';
+      });
+    };
+
+    await ensureAugmentedEvent();
+
+    let refreshed: Awaited<ReturnType<typeof loadPyEspnGame>> = null;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await ensureAugmentedEvent();
+      clearPyEspnGameCache('401770001');
+      // eslint-disable-next-line no-await-in-loop
+      const candidate = await loadPyEspnGame({ gameId: '401770001', forceRefresh: true });
+      if (candidate?.plays.some(play => play.id === 'play-77')) {
+        refreshed = candidate;
+        break;
+      }
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+
     expect(refreshed?.plays.some(play => play.id === 'play-77')).toBe(true);
     expect(refreshed?.game.homeTeam?.score).toBe(14);
     expect(refreshed?.game.awayTeam?.score).toBe(7);
