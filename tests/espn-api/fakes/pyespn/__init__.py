@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-_STATE_PATH = Path(__file__).resolve().with_name("_state.json")
+_CUSTOM_STATE_PATH = os.environ.get("PYESPN_FAKE_STATE_PATH")
+_STATE_PATH = (
+    Path(_CUSTOM_STATE_PATH).expanduser().resolve()
+    if _CUSTOM_STATE_PATH
+    else Path(__file__).resolve().with_name("_state.json")
+)
 
 _DEFAULT_STATE: Dict[str, Any] = {
     "events": {
@@ -162,6 +168,7 @@ def _deep_copy(value: Any) -> Any:
 
 
 def _ensure_state_file() -> None:
+    _STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
     if not _STATE_PATH.exists():
         _STATE_PATH.write_text(json.dumps(_DEFAULT_STATE, indent=2), encoding="utf-8")
 

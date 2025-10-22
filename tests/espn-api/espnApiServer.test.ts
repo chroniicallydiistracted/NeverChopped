@@ -11,6 +11,8 @@ const pythonStubPath = path.resolve(__dirname, 'fakes');
 const pythonPathValue = [pythonStubPath, process.env.PYTHONPATH]
   .filter(Boolean)
   .join(path.delimiter);
+const originalFakeStatePathEnv = process.env.PYESPN_FAKE_STATE_PATH;
+const serverStatePath = path.resolve(pythonStubPath, 'pyespn', '_state-server.json');
 
 let serverProcess: ChildProcessWithoutNullStreams | null = null;
 
@@ -56,6 +58,7 @@ const waitForServer = (proc: ChildProcessWithoutNullStreams) =>
 
 describe('espn-api-server integration', () => {
   beforeAll(async () => {
+    process.env.PYESPN_FAKE_STATE_PATH = serverStatePath;
     await resetFakeState();
     serverProcess = spawn('node', ['espn-api-server.cjs'], {
       cwd: repoRoot,
@@ -77,11 +80,17 @@ describe('espn-api-server integration', () => {
     await resetFakeState();
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     if (serverProcess) {
       serverProcess.kill();
       serverProcess = null;
     }
+    if (originalFakeStatePathEnv === undefined) {
+      delete process.env.PYESPN_FAKE_STATE_PATH;
+    } else {
+      process.env.PYESPN_FAKE_STATE_PATH = originalFakeStatePathEnv;
+    }
+    await resetFakeState();
   });
 
   it('serves schedule, game, play-by-play, and player data via HTTP', async () => {

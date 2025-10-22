@@ -1,5 +1,24 @@
 # Changelog
 
+# 2025-11-03
+- Isolated the PyESPN fake state per Vitest suite by teaching the stub and helper
+  utilities to honor `PYESPN_FAKE_STATE_PATH`, preventing cross-test interference
+  and making the Python entrypoint, server, and end-to-end specs deterministic.
+- Hardened the end-to-end refresh test by reapplying mocked play updates until
+  the refreshed payload reflects the change, covering force-refresh cache
+  bypasses and scoreboard updates.
+- Ignored generated `_state-*.json` fixtures so repeated Vitest runs do not
+  leave behind per-suite state copies in the working tree.
+
+# 2025-11-02
+- Automated the PyESPN NFL schedule refresh loop inside `SleeperFFHelper` so live game statuses update every minute without user
+  interaction while retaining ESPN `event_id` flow.
+- Added jsdom integration coverage for the manual Refresh action and the background auto-refresh interval, asserting that
+  `fetchEspnSchedule` issues `forceRefresh` requests through the UI.
+- Extended the Python entrypoint test suite to compile all PyESPN scripts via `py_compile`, guaranteeing production-safe syntax
+  across the ESPN adapters.
+- Outstanding follow-ups: none — repository review found no redundant files requiring removal.
+
 # 2025-11-01
 - Added a persistent PyESPN fake state fixture and test utilities so integration specs can mutate event data, assert cache/refresh behaviour, and keep the stub aligned with the documented `to_dict` contract. 【F:tests/espn-api/fakes/pyespn/__init__.py†L1-L170】【F:tests/espn-api/fakes/pyespn/_state.json†L1-L94】【F:tests/espn-api/stateUtils.ts†L1-L68】
 - Expanded the end-to-end Vitest suite to cover force-refresh flows, refreshed play merges, and manual hook refreshes while broadening the Python script coverage for season-type aliases and argument validation. 【F:tests/espn-api/pyespnEndToEnd.test.ts†L1-L215】【F:tests/espn-api/espnApiServer.test.ts†L1-L121】【F:tests/espn-api/pyespnScripts.test.ts†L1-L118】

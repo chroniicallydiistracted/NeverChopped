@@ -607,6 +607,50 @@ const SleeperFFHelper = () => {
     // refetch when auth user changes (multi-user support)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeLeagueId, AUTH_USER_ID]);
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+    if (!nflState?.season || nflState?.week === undefined || nflState?.week === null || !nflState?.season_type) {
+      return;
+    }
+
+    let cancelled = false;
+    let inFlight = false;
+
+    const refreshSchedule = async () => {
+      if (cancelled || inFlight) {
+        return;
+      }
+      inFlight = true;
+      try {
+        await loadNflScheduleFromEspn(
+          String(nflState.season_type),
+          Number(nflState.week),
+          Number(nflState.season),
+          { forceRefresh: true },
+        );
+      } catch (err) {
+        console.warn('Automatic ESPN schedule refresh failed:', err);
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const intervalMs = 60_000;
+    const intervalId = setInterval(() => {
+      void refreshSchedule();
+    }, intervalMs);
+
+    void refreshSchedule();
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, nflState?.season, nflState?.season_type, nflState?.week]);
   
   const handleLeagueChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const value = event.target.value;
