@@ -1,90 +1,102 @@
-
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
-import fs from 'fs/promises';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
-interface ESPNGame {
-  game: any;
-  plays: any[];
+interface EspnPlayByPlayPayload {
+  [key: string]: unknown;
 }
 
-/**
- * Fetches ESPN game data using the Python pyespn library
- * @param gameId The ESPN game ID
- * @returns Promise<ESPNGame | null> The game data or null if an error occurred
- */
-export async function fetchEspnGameData(gameId: string): Promise<ESPNGame | null> {
+const PYTHON_INTERPRETER = 'python';
+
+const normalizeSeasonType = (value: string): string => {
+  const key = value.toLowerCase();
+  switch (key) {
+    case 'preseason':
+    case 'pre-season':
+    case 'pre':
+      return 'pre';
+    case 'postseason':
+    case 'post-season':
+    case 'playoffs':
+    case 'playoff':
+    case 'post':
+      return 'post';
+    case 'playin':
+    case 'play-in':
+    case 'play_in':
+      return 'playin';
+    default:
+      return 'regular';
+  }
+};
+
+async function runPythonScript(scriptRelativePath: string, args: Array<string | number>): Promise<string> {
+  const scriptPath = path.join(process.cwd(), scriptRelativePath);
+  const { stdout } = await execFileAsync(PYTHON_INTERPRETER, [scriptPath, ...args.map(arg => String(arg))]);
+  return stdout;
+}
+
+export async function fetchEspnGameData(gameId: string): Promise<EspnPlayByPlayPayload | null> {
   try {
-    const scriptPath = path.join(process.cwd(), 'py scripts/fetch_espn_data.py');
-    const tempOutputPath = path.join(process.cwd(), `tmp/espn_${gameId}_${Date.now()}.json`);
-
-    // Ensure tmp directory exists
-    await fs.mkdir(path.dirname(tempOutputPath), { recursive: true });
-
-    // Execute the Python script
-    const { stdout, stderr } = await execAsync(`python "${scriptPath}" "${gameId}" "${tempOutputPath}"`);
-
-    if (stderr) {
-      console.error(`Python script error: ${stderr}`);
+    const raw = await runPythonScript('py/espn_pbp.py', [gameId]);
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      return null;
     }
-
-    // Read the output file
-    const data = await fs.readFile(tempOutputPath, 'utf8');
-
-    // Clean up the temp file
-    await fs.unlink(tempOutputPath).catch(() => {}); // Ignore errors if file doesn't exist
-
-    // Parse and return the data
-    return JSON.parse(data) as ESPNGame;
+    return JSON.parse(trimmed) as EspnPlayByPlayPayload;
   } catch (error) {
     console.error(`Error fetching ESPN data for game ${gameId}:`, error);
     return null;
   }
 }
 
-/**
- * Fetches ESPN schedule data for a specific week
- * @param week The week number
- * @param year The season year
- * @returns Promise<any | null> The schedule data or null if an error occurred
- */
-export async function fetchEspnSchedule(week: number, year: number): Promise<any | null> {
+export async function fetchEspnSchedule(
+  seasonType: string,
+  season: number,
+  week: number,
+): Promise<unknown[] | null> {
   try {
-    const scriptPath = path.join(process.cwd(), 'py scripts/fetch_espn_schedule.py');
-    const tempOutputPath = path.join(process.cwd(), `tmp/espn_schedule_${week}_${year}_${Date.now()}.json`);
-
-    // Ensure tmp directory exists
-    await fs.mkdir(path.dirname(tempOutputPath), { recursive: true });
-
-    // Execute the Python script
-    const { stdout, stderr } = await execAsync(`python "${scriptPath}" "${week}" "${year}" "${tempOutputPath}"`);
-
-    if (stderr) {
-      console.error(`Python script error: ${stderr}`);
+    const normalizedSeasonType = normalizeSeasonType(seasonType);
+    const raw = await runPythonScript('py/espn_schedule.py', [normalizedSeasonType, season, week]);
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      return [];
     }
-
-    // Read the output file
-    const data = await fs.readFile(tempOutputPath, 'utf8');
-
-    // Clean up the temp file
-    await fs.unlink(tempOutputPath).catch(() => {}); // Ignore errors if file doesn't exist
-
-    // Parse and return the data
-    return JSON.parse(data);
+    const parsed = JSON.parse(trimmed);
+    return Array.isArray(parsed) ? parsed : [];
   } catch (error) {
-    console.error(`Error fetching ESPN schedule for week ${week} of ${year}:`, error);
+    console.error(`Error fetching ESPN schedule for ${seasonType} ${season} week ${week}:`, error);
     return null;
   }
 }
 
-// Command line interface
 if (require.main === module) {
-  const gameId = process.argv[2];
+  const [, , command, ...params] = process.argv;
+
+  if (command === 'schedule') {
+    const [seasonType = 'regular', seasonArg, weekArg] = params;
+    const season = Number(seasonArg);
+    const week = Number(weekArg);
+    if (!Number.isFinite(season) || !Number.isFinite(week)) {
+      console.error('Usage: ts-node fetch-espn-data.ts schedule <seasonType> <season> <week>');
+      process.exit(1);
+    }
+    fetchEspnSchedule(seasonType, season, week)
+      .then(data => {
+        console.log(JSON.stringify(data ?? [], null, 2));
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        process.exit(1);
+      });
+    return;
+  }
+
+  const gameId = command;
   if (!gameId) {
-    console.error('Please provide a game ID');
+    console.error('Usage: ts-node fetch-espn-data.ts <gameId>');
     process.exit(1);
   }
 
