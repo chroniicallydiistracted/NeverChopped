@@ -1,4 +1,9 @@
-import { fetchEspnPlayByPlay } from '../../../lib/api/espn-data';
+import {
+  fetchEspnEvent,
+  fetchEspnPlayByPlay,
+  type EspnEventPayload,
+  type EspnPlayByPlayPayload,
+} from '../../../lib/api/espn-data';
 import type {
   PyEspnDataSource,
   PyEspnGamePayload,
@@ -207,25 +212,17 @@ const extractStatusText = (status: Record<string, unknown> | null): string | nul
   return null;
 };
 
-const normalizePayload = (payload: unknown): PyEspnGamePayload | null => {
-  if (!isRecord(payload)) {
+const normalizePayload = (
+  eventPayload: EspnEventPayload | null,
+  pbpPayload: EspnPlayByPlayPayload | null,
+): PyEspnGamePayload | null => {
+  const base = pbpPayload ?? eventPayload;
+  if (!base) {
     return null;
   }
 
-  const rawId = payload.id ?? payload.event_id ?? null;
-  const id =
-    typeof rawId === 'string'
-      ? rawId
-      : rawId !== null && rawId !== undefined
-      ? String(rawId)
-      : '';
-  if (!id) {
-    return null;
-  }
-
-  const competitions = Array.isArray(payload.competitions) ? payload.competitions : [];
-  const competition = competitions.find(value => isRecord(value)) as Record<string, unknown> | undefined;
-  const statusRecord = competition && isRecord(competition.status) ? (competition.status as Record<string, unknown>) : null;
+  const competition = base.competitions.find(entry => entry && Array.isArray(entry.competitors)) || null;
+  const statusRecord = (competition?.status ?? null) as Record<string, unknown> | null;
   const statusText = extractStatusText(statusRecord);
 
   let clock: string | null = null;
@@ -247,24 +244,21 @@ const normalizePayload = (payload: unknown): PyEspnGamePayload | null => {
     }
   }
 
-  const competitors =
-    competition && Array.isArray(competition.competitors) ? competition.competitors : [];
-  const homeCompetitor = competitors.find(entry => isRecord(entry) && entry.homeAway === 'home');
-  const awayCompetitor = competitors.find(entry => isRecord(entry) && entry.homeAway === 'away');
+  const competitors = competition?.competitors ?? [];
+  const homeCompetitor = competitors.find(entry => {
+    const homeAway = (entry as Record<string, unknown>).homeAway;
+    return typeof homeAway === 'string' && homeAway === 'home';
+  });
+  const awayCompetitor = competitors.find(entry => {
+    const homeAway = (entry as Record<string, unknown>).homeAway;
+    return typeof homeAway === 'string' && homeAway === 'away';
+  });
 
   const playsSource: unknown[] = [];
-  const drivesRaw = payload.drives;
-  const drivesArray = Array.isArray(drivesRaw)
-    ? drivesRaw
-    : isRecord(drivesRaw) && Array.isArray(drivesRaw.items)
-    ? (drivesRaw.items as unknown[])
-    : [];
-
-  drivesArray.forEach(drive => {
-    if (!isRecord(drive)) {
-      return;
-    }
-    const drivePlays = drive.plays;
+  const drives = pbpPayload?.drives ?? [];
+  drives.forEach(drive => {
+    const driveRecord = drive as Record<string, unknown>;
+    const drivePlays = driveRecord.plays;
     if (Array.isArray(drivePlays)) {
       playsSource.push(...drivePlays);
     } else if (isRecord(drivePlays) && Array.isArray(drivePlays.items)) {
@@ -273,12 +267,10 @@ const normalizePayload = (payload: unknown): PyEspnGamePayload | null => {
   });
 
   if (!playsSource.length) {
-    const playsRaw = payload.plays;
-    if (Array.isArray(playsRaw)) {
-      playsSource.push(...playsRaw);
-    } else if (isRecord(playsRaw) && Array.isArray(playsRaw.items)) {
-      playsSource.push(...playsRaw.items);
-    }
+    const playsRaw = pbpPayload?.plays ?? [];
+    playsRaw.forEach(play => {
+      playsSource.push(play);
+    });
   }
 
   const plays: PyEspnPlay[] = playsSource
@@ -287,8 +279,8 @@ const normalizePayload = (payload: unknown): PyEspnGamePayload | null => {
     .sort((a, b) => a.sequence - b.sequence);
 
   const meta: PyEspnGamePayload['game'] = {
-    id,
-    date: typeof payload.date === 'string' ? payload.date : null,
+    id: base.id,
+    date: base.date,
     status: statusText,
     quarter,
     clock,
@@ -318,8 +310,11 @@ export async function loadPyEspnGame({ gameId, forceRefresh }: LoadPyEspnGameOpt
     return cached.data;
   }
 
-  const payload = await fetchEspnPlayByPlay(gameId);
-  const normalized = normalizePayload(payload);
+  const [eventPayload, pbpPayload] = await Promise.all([
+    fetchEspnEvent(gameId, { forceRefresh }),
+    fetchEspnPlayByPlay(gameId, { forceRefresh }),
+  ]);
+  const normalized = normalizePayload(eventPayload, pbpPayload);
   cache.set(gameId, { data: normalized, fetchedAt: now });
   return normalized;
 }
