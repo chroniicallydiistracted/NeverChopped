@@ -53,6 +53,7 @@ export function usePyEspnGame({
           setLastUpdated(Date.now());
         }
       } catch (err) {
+        console.error(`Failed to load PyESPN game data for ${gameId}`, err);
         if (mountedRef.current) {
           setError(err instanceof Error ? err.message : 'Failed to load game data');
         }

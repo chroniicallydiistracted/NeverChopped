@@ -165,6 +165,36 @@ detect_python() {
 
 ensure_pyespn() {
     detect_python
+
+    local requirements_file=""
+    local candidates=("requirements.txt" "py/requirements.txt" "py scripts/requirements.txt")
+    for candidate in "${candidates[@]}"; do
+        if [[ -f "$candidate" ]]; then
+            requirements_file="$candidate"
+            break
+        fi
+    done
+
+    if [[ -n "$requirements_file" ]]; then
+        local checksum marker installed_checksum
+        checksum=$(sha1sum "$requirements_file" | awk '{print $1}')
+        marker=".python-deps.sha1"
+        installed_checksum=""
+        if [[ -f "$marker" ]]; then
+            installed_checksum=$(cat "$marker" 2>/dev/null || true)
+        fi
+
+        if [[ "$checksum" != "$installed_checksum" ]]; then
+            echo -e "${YELLOW}⚙️  Installing Python dependencies from ${requirements_file}...${NC}"
+            "$PYTHON_BIN" -m pip install --user --upgrade --requirement "$requirements_file"
+            echo "$checksum" > "$marker"
+        else
+            echo -e "${GREEN}✅ Python dependencies are current (${requirements_file}).${NC}"
+        fi
+    else
+        echo -e "${YELLOW}⚠️  No requirements file found. Falling back to pyespn presence check.${NC}"
+    fi
+
     if ! "$PYTHON_BIN" -c "import pyespn" >/dev/null 2>&1; then
         echo -e "${YELLOW}⚠️  pyespn not found for ${PYTHON_BIN}. Installing...${NC}"
         "$PYTHON_BIN" -m pip install --user pyespn
@@ -219,12 +249,15 @@ start_api_background() {
 start_api_foreground() {
     ensure_pyespn
     echo -e "${YELLOW}🏈 Starting ESPN API server...${NC}"
-    npm run api:espn > espn-api.log 2>&1 &
+    (
+        npm run api:espn 2>&1 | tee espn-api.log
+    ) &
     ESPN_PID=$!
     echo $ESPN_PID > .espn_api.pid
     sleep 0.5
     if ps -p $ESPN_PID >/dev/null 2>&1; then
         print_espn_access_info
+        echo -e "${BLUE}ESPN API logs are streaming to this terminal and mirrored to espn-api.log${NC}"
     else
         echo -e "${RED}❌ Failed to start ESPN API server. Check espn-api.log for details.${NC}"
         exit 1

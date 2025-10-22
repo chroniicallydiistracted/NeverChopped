@@ -36,6 +36,7 @@ const playerCache = createCache(60 * 60 * 1000);
 
 function runPy(script, args = []) {
   return new Promise((resolve, reject) => {
+    const scriptName = path.basename(script);
     const proc = spawn('python', [script, ...args], {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -48,7 +49,12 @@ function runPy(script, args = []) {
     });
 
     proc.stderr.on('data', chunk => {
-      stderr += chunk.toString();
+      const text = chunk.toString();
+      stderr += text;
+      const lines = text.split(/\r?\n/).filter(Boolean);
+      lines.forEach(line => {
+        console.error(`[pyespn:${scriptName}] ${line}`);
+      });
     });
 
     proc.on('close', code => {
@@ -60,6 +66,7 @@ function runPy(script, args = []) {
     });
 
     proc.on('error', err => {
+      console.error(`[pyespn:${scriptName}] failed to spawn python process`, err);
       reject(err);
     });
   });
