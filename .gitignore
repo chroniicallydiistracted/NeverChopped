@@ -41,4 +41,13 @@ Thumbs.db
 __pycache__/
 
 # Generated assets
+dist/
+tmp/
+dev.log
+espn-api.log
+nohup.out
 
+# Runtime pid files
+.dev_server.pid
+.espn_api.pid
+.cloudflared.pid

@@ -246,4 +246,18 @@ describe('fetchEspnSchedule', () => {
       status_label: 'Final',
     });
   });
+
+  it('appends force refresh flag when requested', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    } as unknown as Response);
+
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+
+    await fetchEspnSchedule('regular', 2025, 8, { forceRefresh: true });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe('/api/espn/schedule/regular/2025/8?force=refresh');
+  });
 });

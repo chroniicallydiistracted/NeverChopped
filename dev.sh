@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # NOTE: This startup script intentionally DOES NOT interact with Cloudflare.
 # - No cloudflared start/stop commands
@@ -16,22 +17,30 @@ NC='\033[0m' # No Color
 BACKGROUND=false
 NOCLEAN=false
 FULLCLEAN=false
+INTERACTIVE=false
+RUN_FRONTEND=true
+RUN_API=true
 PORT_START=3000
 PORT_END=3010
 DOMAIN=${TUNNEL_DOMAIN:-sleeper.westfam.media}
-INTERACTIVE=false
+PYTHON_BIN=""
 
 usage() {
     cat <<USAGE
 ${YELLOW}Usage:${NC} $(basename "$0") [options]
 
 Options:
-    -b, --background   Start servers in the background (no traps). Logs -> dev.log
-    -n, --no-clean     Skip killing ports and npm/vite processes
-    -f, --full-clean   Full clean: ports + caches + reinstall dependencies
-    -d, --domain NAME  Override external access domain (default: ${DOMAIN})
-    -i, --interactive  Interactive mode - prompts for server selection
-    -h, --help         Show this help
+    -b, --background     Start servers in the background (no traps). Logs -> dev.log / espn-api.log
+    -n, --no-clean       Skip killing ports and npm/vite processes
+    -f, --full-clean     Full clean: ports + caches + reinstall dependencies
+    -d, --domain NAME    Override external access domain (default: ${DOMAIN})
+    -i, --interactive    Interactive mode - prompts for server selection
+        --frontend-only  Only start the Vite dev server
+        --api-only       Only start the ESPN API server
+    -h, --help           Show this help
+
+Commands:
+    stop                 Stop any background dev processes started by this script
 
 Notes:
     - This script never starts/stops Cloudflare. Manage tunnels manually.
@@ -41,10 +50,274 @@ Notes:
 USAGE
 }
 
-if [[ "$1" == "stop" ]]; then
-    echo -e "${YELLOW}🛑 Stopping dev server and cleaning ports...${NC}"
+stop_pid_file() {
+    local file="$1"
+    local label="$2"
+
+    if [[ -f "$file" ]]; then
+        local pid
+        pid=$(cat "$file" 2>/dev/null || true)
+        if [[ -n "${pid}" ]] && kill -0 "$pid" 2>/dev/null; then
+            echo -e "${YELLOW}Stopping ${label} (PID: ${pid})...${NC}"
+            kill "$pid" 2>/dev/null || true
+            sleep 0.5
+            if kill -0 "$pid" 2>/dev/null; then
+                kill -9 "$pid" 2>/dev/null || true
+            fi
+        fi
+        rm -f "$file"
+    fi
+}
+
+clean_ports() {
+    echo -e "${YELLOW}🧹 Cleaning up ports and background processes...${NC}"
+
+    stop_pid_file ".dev_server.pid" "frontend dev server"
+    stop_pid_file ".espn_api.pid" "ESPN API server"
+
+    for port in $(seq $PORT_START $PORT_END); do
+        pid=$(lsof -ti:$port 2>/dev/null || true)
+        if [[ -n "$pid" ]]; then
+            echo -e "${RED}Killing process on port $port (PID: $pid)${NC}"
+            kill -9 "$pid" 2>/dev/null || true
+        fi
+    done
+
+    echo -e "${YELLOW}🔪 Killing lingering dev processes...${NC}"
+    pkill -9 -f "vite" 2>/dev/null || true
+    pkill -9 -f "npm run dev" 2>/dev/null || true
+    pkill -9 -f "espn-api-server" 2>/dev/null || true
+    pkill -9 -f "api:espn" 2>/dev/null || true
+
+    echo -e "${GREEN}✅ Cleanup complete${NC}"
+}
+
+check_dependencies() {
+    echo -e "${YELLOW}📦 Checking dependencies...${NC}"
+    if [[ ! -d "node_modules" ]]; then
+        echo -e "${YELLOW}⚠️  node_modules not found. Installing dependencies...${NC}"
+        npm install
+    else
+        if [[ "package.json" -nt "node_modules" || "package-lock.json" -nt "node_modules" ]]; then
+            echo -e "${YELLOW}⚠️  Dependencies may be outdated. Running npm install...${NC}"
+            npm install
+        else
+            echo -e "${GREEN}✅ Dependencies up to date${NC}"
+        fi
+    fi
+}
+
+clear_caches() {
+    echo -e "${YELLOW}🗑️  Clearing build caches...${NC}"
+    if [[ -d "node_modules/.vite" ]]; then
+        rm -rf node_modules/.vite
+        echo -e "${GREEN}✅ Vite cache cleared${NC}"
+    fi
+    if [[ -f ".tsbuildinfo" ]]; then
+        rm -f .tsbuildinfo
+        echo -e "${GREEN}✅ TypeScript build info cleared${NC}"
+    fi
+    if [[ -d "dist" ]]; then
+        rm -rf dist
+        echo -e "${GREEN}✅ Dist folder cleared${NC}"
+    fi
+}
+
+print_access_info() {
+    echo -e "${BLUE}Frontend Access URLs:${NC}"
+    echo -e "  - Local:   ${GREEN}http://localhost:3000${NC}"
+    if ip -o -4 addr show 2>/dev/null | grep -q "inet "; then
+        ip -o -4 addr show | awk '{print $4}' | cut -d/ -f1 | grep -E '^[0-9]+' | while read -r ip; do
+            [[ "$ip" == "127.0.0.1" ]] && continue
+            echo -e "  - Network: ${GREEN}http://$ip:3000${NC}"
+        done | head -n 3
+    fi
+    echo -e "  - External (via tunnel): ${GREEN}https://${DOMAIN}${NC}"
+    echo -e "${YELLOW}Note:${NC} Tunnel must be running separately. This script will not start or stop it."
+}
+
+print_espn_access_info() {
+    echo -e "${BLUE}ESPN API Server:${NC}"
+    echo -e "  - Local:   ${GREEN}http://localhost:3001${NC}"
+    if ip -o -4 addr show 2>/dev/null | grep -q "inet "; then
+        ip -o -4 addr show | awk '{print $4}' | cut -d/ -f1 | grep -E '^[0-9]+' | while read -r ip; do
+            [[ "$ip" == "127.0.0.1" ]] && continue
+            echo -e "  - Network: ${GREEN}http://$ip:3001${NC}"
+        done | head -n 1
+    fi
+}
+
+detect_python() {
+    if [[ -n "$PYTHON_BIN" ]]; then
+        return
+    fi
+    for candidate in python python3; do
+        if command -v "$candidate" >/dev/null 2>&1; then
+            PYTHON_BIN="$candidate"
+            break
+        fi
+    done
+    if [[ -z "$PYTHON_BIN" ]]; then
+        echo -e "${RED}❌ Python is not installed. Please install Python to use the ESPN API.${NC}"
+        exit 1
+    fi
+}
+
+ensure_pyespn() {
+    detect_python
+    if ! "$PYTHON_BIN" -c "import pyespn" >/dev/null 2>&1; then
+        echo -e "${YELLOW}⚠️  pyespn not found for ${PYTHON_BIN}. Installing...${NC}"
+        "$PYTHON_BIN" -m pip install --user pyespn
+    fi
+}
+
+start_frontend_background() {
+    echo -e "${YELLOW}🚀 Starting dev server (background)...${NC}"
+    nohup npm run dev > dev.log 2>&1 &
+    DEV_PID=$!
+    echo $DEV_PID > .dev_server.pid
+    sleep 0.5
+    if ps -p $DEV_PID >/dev/null 2>&1; then
+        echo -e "${GREEN}✅ Dev server started (PID: $DEV_PID)${NC}"
+        print_access_info
+        echo -e "${BLUE}Logs:${NC} tail -f dev.log"
+    else
+        echo -e "${RED}❌ Failed to start dev server. Check dev.log for details.${NC}"
+        exit 1
+    fi
+}
+
+start_frontend_foreground() {
+    echo -e "${YELLOW}🚀 Starting dev server (foreground)...${NC}"
+    cleanup() {
+        echo -e "\n${YELLOW}🛑 Shutting down...${NC}"
+        stop_services
+        exit 0
+    }
+    trap cleanup SIGINT SIGTERM
+    print_access_info
+    npm run dev
+}
+
+start_api_background() {
+    ensure_pyespn
+    echo -e "${YELLOW}🏈 Starting ESPN API server (background)...${NC}"
+    nohup npm run api:espn > espn-api.log 2>&1 &
+    ESPN_PID=$!
+    echo $ESPN_PID > .espn_api.pid
+    sleep 0.5
+    if ps -p $ESPN_PID >/dev/null 2>&1; then
+        echo -e "${GREEN}✅ ESPN API server started (PID: $ESPN_PID)${NC}"
+        print_espn_access_info
+        echo -e "${BLUE}Logs:${NC} tail -f espn-api.log"
+    else
+        echo -e "${RED}❌ Failed to start ESPN API server. Check espn-api.log for details.${NC}"
+        exit 1
+    fi
+}
+
+start_api_foreground() {
+    ensure_pyespn
+    echo -e "${YELLOW}🏈 Starting ESPN API server...${NC}"
+    npm run api:espn > espn-api.log 2>&1 &
+    ESPN_PID=$!
+    echo $ESPN_PID > .espn_api.pid
+    sleep 0.5
+    if ps -p $ESPN_PID >/dev/null 2>&1; then
+        print_espn_access_info
+    else
+        echo -e "${RED}❌ Failed to start ESPN API server. Check espn-api.log for details.${NC}"
+        exit 1
+    fi
+}
+
+start_frontend() {
+    if [[ "$RUN_FRONTEND" = false ]]; then
+        return
+    fi
+    if [[ "$BACKGROUND" = true ]]; then
+        start_frontend_background
+    else
+        start_frontend_foreground
+    fi
+}
+
+start_api() {
+    if [[ "$RUN_API" = false ]]; then
+        return
+    fi
+    if [[ "$BACKGROUND" = true ]]; then
+        start_api_background
+    else
+        start_api_foreground
+    fi
+}
+
+stop_services() {
+    stop_pid_file ".dev_server.pid" "frontend dev server"
+    stop_pid_file ".espn_api.pid" "ESPN API server"
+    pkill -9 -f "vite" 2>/dev/null || true
+    pkill -9 -f "npm run dev" 2>/dev/null || true
+    pkill -9 -f "espn-api-server" 2>/dev/null || true
+    pkill -9 -f "api:espn" 2>/dev/null || true
+    rm -f dev.log espn-api.log
+}
+
+interactive_mode() {
+    echo -e "${BLUE}=== Interactive Server Selection ===${NC}"
+    echo "1) Frontend only"
+    echo "2) ESPN API only"
+    echo "3) Both Frontend and ESPN API"
+    echo "4) Exit"
+
+    read -rp "Select an option [1-4]: " choice
+
+    case $choice in
+        1)
+            RUN_FRONTEND=true
+            RUN_API=false
+            ;;
+        2)
+            RUN_FRONTEND=false
+            RUN_API=true
+            ;;
+        3)
+            RUN_FRONTEND=true
+            RUN_API=true
+            ;;
+        4)
+            echo -e "${YELLOW}Exiting...${NC}"
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}Invalid option. Please select 1-4.${NC}"
+            interactive_mode
+            return
+            ;;
+    esac
+
+    if [[ "$RUN_API" = true ]]; then
+        start_api
+    fi
+
+    if [[ "$RUN_FRONTEND" = true ]]; then
+        if [[ "$BACKGROUND" = true ]]; then
+            start_frontend_background
+        else
+            start_frontend_foreground
+        fi
+    fi
+
+    if [[ "$BACKGROUND" = false && "$RUN_FRONTEND" = true ]]; then
+        echo -e "${YELLOW}Press Ctrl+C to stop the dev server${NC}"
+        wait
+    fi
+}
+
+# --- Argument parsing ---
+if [[ ${1:-} == "stop" ]]; then
+    stop_services
     clean_ports
-    [ -f .dev_server.pid ] && rm -f .dev_server.pid
     exit 0
 fi
 
@@ -69,249 +342,58 @@ while [[ $# -gt 0 ]]; do
             INTERACTIVE=true
             shift
             ;;
+        --frontend-only)
+            RUN_FRONTEND=true
+            RUN_API=false
+            shift
+            ;;
+        --api-only)
+            RUN_FRONTEND=false
+            RUN_API=true
+            shift
+            ;;
         -h|--help)
-            usage; exit 0
+            usage
+            exit 0
             ;;
         *)
-            echo -e "${RED}Unknown option:${NC} $1"; usage; exit 1
+            echo -e "${RED}Unknown option:${NC} $1"
+            usage
+            exit 1
             ;;
     esac
 done
 
-check_dependencies() {
-    echo -e "${YELLOW}📦 Checking dependencies...${NC}"
-    if [ ! -d "node_modules" ]; then
-        echo -e "${YELLOW}⚠️  node_modules not found. Installing dependencies...${NC}"
-        npm install
-    else
-        # Check if package.json is newer than node_modules
-        if [ "package.json" -nt "node_modules" ] || [ "package-lock.json" -nt "node_modules" ]; then
-            echo -e "${YELLOW}⚠️  Dependencies may be outdated. Running npm install...${NC}"
-            npm install
-        else
-            echo -e "${GREEN}✅ Dependencies up to date${NC}"
-        fi
-    fi
-}
-
-clear_caches() {
-    echo -e "${YELLOW}🗑️  Clearing build caches...${NC}"
-    # Clear Vite cache
-    if [ -d "node_modules/.vite" ]; then
-        rm -rf node_modules/.vite
-        echo -e "${GREEN}✅ Vite cache cleared${NC}"
-    fi
-    # Clear TypeScript build info
-    if [ -f ".tsbuildinfo" ]; then
-        rm -f .tsbuildinfo
-        echo -e "${GREEN}✅ TypeScript build info cleared${NC}"
-    fi
-    # Clear dist folder
-    if [ -d "dist" ]; then
-        rm -rf dist
-        echo -e "${GREEN}✅ Dist folder cleared${NC}"
-    fi
-}
-
-clean_ports() {
-    echo -e "${YELLOW}🧹 Cleaning up ports...${NC}"
-    for port in $(seq $PORT_START $PORT_END); do
-        pid=$(lsof -ti:$port 2>/dev/null)
-        if [ -n "$pid" ]; then
-            echo -e "${RED}Killing process on port $port (PID: $pid)${NC}"
-            kill -9 $pid 2>/dev/null || true
-        fi
-    done
-    echo -e "${YELLOW}🔪 Killing any lingering npm/vite processes...${NC}"
-    pkill -9 -f "vite" 2>/dev/null || true
-    pkill -9 -f "npm run dev" 2>/dev/null || true
-    sleep 1
-    echo -e "${GREEN}✅ Cleanup complete!${NC}"
-}
-
-print_access_info() {
-    echo -e "${BLUE}Frontend Access URLs:${NC}"
-    echo -e "  - Local:   ${GREEN}http://localhost:3000${NC}"
-    # Best-effort network IPs
-    if ip -o -4 addr show 2>/dev/null | grep -q "inet "; then
-        ip -o -4 addr show | awk '{print $4}' | cut -d/ -f1 | grep -E '^[0-9]+' | while read -r ip; do
-            [[ "$ip" == "127.0.0.1" ]] && continue
-            echo -e "  - Network: ${GREEN}http://$ip:3000${NC}"
-        done | head -n 3
-    fi
-    echo -e "  - External (via tunnel): ${GREEN}https://${DOMAIN}${NC}"
-    echo -e "${YELLOW}Note:${NC} Tunnel must be running separately. This script will not start or stop it."
-}
-
-print_espn_access_info() {
-    echo -e "${BLUE}ESPN API Server:${NC}"
-    echo -e "  - Local:   ${GREEN}http://localhost:3001${NC}"
-    if ip -o -4 addr show 2>/dev/null | grep -q "inet "; then
-        ip -o -4 addr show | awk '{print $4}' | cut -d/ -f1 | grep -E '^[0-9]+' | while read -r ip; do
-            [[ "$ip" == "127.0.0.1" ]] && continue
-            echo -e "  - Network: ${GREEN}http://$ip:3001${NC}"
-        done | head -n 1
-    fi
-}
-
-start_foreground() {
-    echo -e "${YELLOW}🚀 Starting dev server (foreground)...${NC}"
-    # Trap to cleanup on exit (foreground only)
-    cleanup() {
-        echo -e "\n${YELLOW}🛑 Shutting down...${NC}"
-        pkill -9 -f "vite" 2>/dev/null || true
-        pkill -9 -f "espn-api-server" 2>/dev/null || true
-        [ -f .espn_api.pid ] && rm -f .espn_api.pid
-        for port in $(seq $PORT_START $PORT_END); do
-            pid=$(lsof -ti:$port 2>/dev/null)
-            if [ -n "$pid" ]; then
-                kill -9 $pid 2>/dev/null || true
-            fi
-        done
-        echo -e "${GREEN}✅ Cleanup complete${NC}"
-        exit 0
-    }
-    trap cleanup SIGINT SIGTERM
-    print_access_info
-    npm run dev
-}
-
-start_background() {
-    echo -e "${YELLOW}🚀 Starting dev server (background)...${NC}"
-    # Start and detach
-    nohup npm run dev > dev.log 2>&1 &
-    DEV_PID=$!
-    echo $DEV_PID > .dev_server.pid
-    sleep 0.5
-    if ps -p $DEV_PID >/dev/null 2>&1; then
-        echo -e "${GREEN}✅ Dev server started (PID: $DEV_PID)${NC}"
-        print_access_info
-        echo -e "${BLUE}Logs:${NC} tail -f dev.log"
-    else
-        echo -e "${RED}❌ Failed to start dev server. Check dev.log for details.${NC}"
-        exit 1
-    fi
-}
-
-start_espn_api() {
-    echo -e "${YELLOW}🏈 Starting ESPN API server...${NC}"
-
-    # Check if Python and required packages are installed
-    if ! command -v python &> /dev/null; then
-        echo -e "${RED}❌ Python is not installed. Please install Python to use the ESPN API.${NC}"
-        return 1
-    fi
-
-    # Check if pyespn is installed
-    if ! python -c "import pyespn" &>/dev/null; then
-        echo -e "${YELLOW}⚠️  pyespn not found. Installing...${NC}"
-        pip install pyespn
-    fi
-
-    # Start the ESPN API server
-    if [ "$BACKGROUND" = true ]; then
-        nohup node espn-api-server.cjs > espn-api.log 2>&1 &
-        ESPN_PID=$!
-        echo $ESPN_PID > .espn_api.pid
-        sleep 0.5
-        if ps -p $ESPN_PID >/dev/null 2>&1; then
-            echo -e "${GREEN}✅ ESPN API server started (PID: $ESPN_PID)${NC}"
-            print_espn_access_info
-            echo -e "${BLUE}Logs:${NC} tail -f espn-api.log"
-        else
-            echo -e "${RED}❌ Failed to start ESPN API server. Check espn-api.log for details.${NC}"
-            return 1
-        fi
-    else
-        # Start in foreground
-        echo -e "${YELLOW}🏈 Starting ESPN API server (foreground)...${NC}"
-        node espn-api-server.cjs &
-        ESPN_PID=$!
-        echo $ESPN_PID > .espn_api.pid
-        print_espn_access_info
-    fi
-}
-
-interactive_mode() {
-    echo -e "${BLUE}=== Interactive Server Selection ===${NC}"
-    echo "1) Frontend only"
-    echo "2) ESPN API only"
-    echo "3) Both Frontend and ESPN API"
-    echo "4) Exit"
-
-    read -p "Select an option [1-4]: " choice
-
-    case $choice in
-        1)
-            echo -e "${YELLOW}Starting Frontend only...${NC}"
-            if [ "$BACKGROUND" = true ]; then
-                start_background
-            else
-                start_foreground
-            fi
-            ;;
-        2)
-            echo -e "${YELLOW}Starting ESPN API only...${NC}"
-            start_espn_api
-            if [ "$BACKGROUND" = false ]; then
-                # Wait for user to stop
-                echo -e "${YELLOW}Press Ctrl+C to stop the server${NC}"
-                wait
-            fi
-            ;;
-        3)
-            echo -e "${YELLOW}Starting both Frontend and ESPN API...${NC}"
-            start_espn_api
-            if [ "$BACKGROUND" = true ]; then
-                start_background
-            else
-                # Start frontend in background so we can wait for both
-                BACKGROUND=true
-                start_background
-                echo -e "${YELLOW}Press Ctrl+C to stop both servers${NC}"
-                wait
-            fi
-            ;;
-        4)
-            echo -e "${YELLOW}Exiting...${NC}"
-            exit 0
-            ;;
-        *)
-            echo -e "${RED}Invalid option. Please select 1-4.${NC}"
-            interactive_mode
-            ;;
-    esac
-}
-
-if [ "$NOCLEAN" = false ]; then
+if [[ "$NOCLEAN" = false ]]; then
     clean_ports
-    
-    if [ "$FULLCLEAN" = true ]; then
+    if [[ "$FULLCLEAN" = true ]]; then
         echo -e "${YELLOW}🔥 Full clean requested...${NC}"
         clear_caches
         check_dependencies
     else
-        # Always check dependencies even in normal mode
         check_dependencies
     fi
 else
     echo -e "${YELLOW}⚠️  Skipping cleanup as requested (--no-clean).${NC}"
-    # Still check dependencies in no-clean mode
     check_dependencies
 fi
 
-if [ "$INTERACTIVE" = true ]; then
+if [[ "$INTERACTIVE" = true ]]; then
     interactive_mode
-else
-    # Default behavior - start both servers
-    start_espn_api
-    if [ "$BACKGROUND" = true ]; then
-        start_background
+    exit 0
+fi
+
+if [[ "$RUN_API" = true ]]; then
+    start_api
+fi
+
+if [[ "$RUN_FRONTEND" = true ]]; then
+    if [[ "$BACKGROUND" = true ]]; then
+        start_frontend_background
+        echo -e "${YELLOW}✅ Services started in background. Use './dev.sh stop' to terminate.${NC}"
     else
-        # Start frontend in background so we can wait for both
-        BACKGROUND=true
-        start_background
-        echo -e "${YELLOW}Press Ctrl+C to stop both servers${NC}"
-        wait
+        start_frontend_foreground
     fi
+else
+    echo -e "${YELLOW}No services requested. Use --frontend-only or --api-only to specify targets.${NC}"
 fi

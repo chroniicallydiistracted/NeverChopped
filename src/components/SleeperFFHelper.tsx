@@ -31,6 +31,10 @@ interface NflScheduleGame {
   away: string;
 }
 
+interface LoadNflScheduleOptions {
+  forceRefresh?: boolean;
+}
+
 const SleeperFFHelper = () => {
   const auth = useAuth();
   const config = getConfig();
@@ -202,10 +206,13 @@ const SleeperFFHelper = () => {
     seasonType: string,
     week: number,
     year: number,
+    options: LoadNflScheduleOptions = {},
   ) => {
     try {
       const normalizedSeasonType = seasonType && seasonType.length > 0 ? seasonType : 'regular';
-      const schedule = await fetchEspnSchedule(normalizedSeasonType, year, week);
+      const schedule = await fetchEspnSchedule(normalizedSeasonType, year, week, {
+        forceRefresh: options.forceRefresh,
+      });
       if (Array.isArray(schedule) && schedule.length > 0) {
         const transformedSchedule = schedule
           .map(game => {
@@ -263,7 +270,10 @@ const SleeperFFHelper = () => {
   };
   
   // Fetch all data for the active league
-  const fetchAllData = async (targetLeagueId?: string) => {
+  const fetchAllData = async (
+    targetLeagueId?: string | null,
+    options: LoadNflScheduleOptions = {},
+  ) => {
     const leagueIdToLoad = targetLeagueId || activeLeagueId;
     if (!leagueIdToLoad) {
       setError('No league selected. Please choose a league to load data.');
@@ -345,6 +355,7 @@ const SleeperFFHelper = () => {
           String(stateData.season_type),
           Number(stateData.week),
           Number(stateData.season),
+          options,
         );
       } else {
         setNflSchedule([]);
@@ -1572,8 +1583,8 @@ const SleeperFFHelper = () => {
           <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-white mb-2">Error Loading Data</h2>
           <p className="text-red-200">{error}</p>
-          <button 
-            onClick={() => fetchAllData(activeLeagueId)}
+          <button
+            onClick={() => fetchAllData(activeLeagueId, { forceRefresh: true })}
             className="mt-4 w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
           >
             Retry
@@ -1652,7 +1663,7 @@ const SleeperFFHelper = () => {
                 </select>
               </div>
               <button
-                onClick={() => fetchAllData(activeLeagueId)}
+                onClick={() => fetchAllData(activeLeagueId, { forceRefresh: true })}
                 disabled={refreshing || !activeLeagueId}
                 className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 px-4 py-2 rounded-lg transition-colors"
               >
