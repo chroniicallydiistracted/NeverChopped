@@ -1,5 +1,8 @@
 # Changelog
 
+# 2025-10-26
+- Wired the live PyESPN participant panel to the `/api/espn/player/:playerId` endpoint via a new `useEspnPlayers` hook so play-by-play entries render official ESPN names, positions, team abbreviations, and jersey numbers with graceful loading/error messaging. 【F:src/features/live-view-pyespn/components/ParticipantStats.tsx†L1-L78】【F:src/features/live-view-pyespn/data/useEspnPlayers.ts†L1-L138】
+
 # 2025-10-25
 - Removed the deprecated `py scripts/fetch_espn_*.py` wrappers now that the ESPN API server calls the dedicated `py/espn_*.py` entry points for schedule, game, play-by-play, and player data. 【F:py/espn_schedule.py†L1-L104】【F:py/espn_game.py†L1-L20】【F:py/espn_pbp.py†L1-L26】【F:py/espn_player.py†L1-L20】
 - Added a global `.gitignore` rule for Python `__pycache__` directories to prevent interpreter artifacts from reappearing after the cleanup. 【F:.gitignore†L33-L35】
