@@ -1,7 +1,8 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { spawn, ChildProcessWithoutNullStreams } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resetFakeState, updateFakeEvent } from './stateUtils';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -55,6 +56,7 @@ const waitForServer = (proc: ChildProcessWithoutNullStreams) =>
 
 describe('espn-api-server integration', () => {
   beforeAll(async () => {
+    await resetFakeState();
     serverProcess = spawn('node', ['espn-api-server.cjs'], {
       cwd: repoRoot,
       env: {
@@ -66,6 +68,14 @@ describe('espn-api-server integration', () => {
 
     await waitForServer(serverProcess);
   }, 20000);
+
+  beforeEach(async () => {
+    await resetFakeState();
+  });
+
+  afterEach(async () => {
+    await resetFakeState();
+  });
 
   afterAll(() => {
     if (serverProcess) {
@@ -95,5 +105,25 @@ describe('espn-api-server integration', () => {
     expect(playerResponse.ok).toBe(true);
     const player = (await playerResponse.json()) as Record<string, unknown>;
     expect(player.id).toBe('15847');
+  }, 20000);
+
+  it('respects cache until a force refresh bypasses it', async () => {
+    const initialResponse = await fetch('http://127.0.0.1:3001/api/espn/schedule/regular/2025/7');
+    const initialSchedule = (await initialResponse.json()) as Array<Record<string, string>>;
+    expect(initialSchedule[0]?.status).toBe('in-progress');
+
+    await updateFakeEvent('401770001', event => {
+      event.status = 'post';
+    });
+
+    const cachedResponse = await fetch('http://127.0.0.1:3001/api/espn/schedule/regular/2025/7');
+    const cachedSchedule = (await cachedResponse.json()) as Array<Record<string, string>>;
+    expect(cachedSchedule[0]?.status).toBe('in-progress');
+
+    const refreshedResponse = await fetch(
+      'http://127.0.0.1:3001/api/espn/schedule/regular/2025/7?force=refresh',
+    );
+    const refreshedSchedule = (await refreshedResponse.json()) as Array<Record<string, string>>;
+    expect(refreshedSchedule[0]?.status).toBe('post');
   }, 20000);
 });

@@ -1,5 +1,11 @@
 # Changelog
 
+# 2025-11-01
+- Added a persistent PyESPN fake state fixture and test utilities so integration specs can mutate event data, assert cache/refresh behaviour, and keep the stub aligned with the documented `to_dict` contract. 【F:tests/espn-api/fakes/pyespn/__init__.py†L1-L170】【F:tests/espn-api/fakes/pyespn/_state.json†L1-L94】【F:tests/espn-api/stateUtils.ts†L1-L68】
+- Expanded the end-to-end Vitest suite to cover force-refresh flows, refreshed play merges, and manual hook refreshes while broadening the Python script coverage for season-type aliases and argument validation. 【F:tests/espn-api/pyespnEndToEnd.test.ts†L1-L215】【F:tests/espn-api/espnApiServer.test.ts†L1-L121】【F:tests/espn-api/pyespnScripts.test.ts†L1-L118】
+- Updated the Python PyESPN entrypoints to call `to_dict` with explicit play-by-play flags so outputs match the library’s documented formatting. 【F:py/espn_game.py†L1-L20】【F:py/espn_pbp.py†L1-L26】
+- Outstanding follow-ups: implement the automatic PyESPN schedule refresh in `SleeperFFHelper` and add the UI-level refresh integration test. 【F:OUTSTANDING_TASKS.md†L7-L8】
+
 # 2025-10-31
 - Added a jsdom-backed end-to-end regression suite that boots the PyESPN Express server, exercises the Python scripts, TypeScript API helpers, loader, and hook through real HTTP calls using the stubbed PyESPN package, and serialized the run under Vitest to guarantee deterministic coverage. 【F:tests/espn-api/pyespnEndToEnd.test.ts†L1-L178】【F:tests/espn-api/fakes/pyespn/__init__.py†L1-L214】
 - Introduced a minimal Vitest configuration that disables worker threading so the ESPN API server integration specs share a single process, preventing port collisions during the new full-stack runs. 【F:vitest.config.ts†L1-L6】
