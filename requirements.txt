@@ -1,7 +1,9 @@
-requests
 beautifulsoup4
-pyespn
 click
+numpy
+Pillow
+pyespn
 pytest
 pytest-check
+requests
 tqdm

@@ -124,15 +124,20 @@ export function useEspnPlayers(playerIds: string[]): UseEspnPlayersResult {
             if (payload) {
               cacheRef.current.set(id, buildPlayerMeta(payload));
             } else {
+              console.warn(`PyESPN player payload missing for ${id}`);
               cacheRef.current.set(id, null);
             }
             changed = true;
           } else {
+            console.error(`Failed to load PyESPN player ${id}`, result.reason);
             failure = true;
           }
         });
         if (changed) {
           setVersion(prev => prev + 1);
+        }
+        if (failure) {
+          console.warn('Some PyESPN player lookups failed', { playerIds: missing });
         }
         setError(failure ? 'Failed to load some ESPN player data.' : null);
       })
@@ -140,6 +145,7 @@ export function useEspnPlayers(playerIds: string[]): UseEspnPlayersResult {
         if (cancelled) {
           return;
         }
+        console.error('Failed to load ESPN player data batch', err);
         setError(err instanceof Error ? err.message : 'Failed to load ESPN player data.');
       })
       .finally(() => {

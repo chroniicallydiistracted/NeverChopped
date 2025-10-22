@@ -315,6 +315,15 @@ export async function loadPyEspnGame({ gameId, forceRefresh }: LoadPyEspnGameOpt
     fetchEspnPlayByPlay(gameId, { forceRefresh }),
   ]);
   const normalized = normalizePayload(eventPayload, pbpPayload);
+  if (!normalized) {
+    console.warn(
+      `PyESPN payload unavailable for game ${gameId}; verify event and play-by-play availability.`,
+      {
+        eventAvailable: Boolean(eventPayload),
+        playByPlayAvailable: Boolean(pbpPayload),
+      },
+    );
+  }
   cache.set(gameId, { data: normalized, fetchedAt: now });
   return normalized;
 }

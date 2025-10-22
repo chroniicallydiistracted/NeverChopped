@@ -1,5 +1,30 @@
 # Changelog
 
+# 2025-11-06
+- Centralized the Python dependency manifest at the repository root, adding the
+  Pillow and NumPy requirements alongside the existing PyESPN and tooling
+  packages so every script used by the stack resolves in a single
+  `pip install -r requirements.txt`. 【F:requirements.txt†L1-L9】
+- Updated `dev.sh` to install or refresh Python dependencies whenever the
+  requirements file changes, caching the checksum to avoid redundant installs
+  while still guaranteeing PyESPN is available for the ESPN API server. 【F:dev.sh†L166-L207】
+- Audited the Node manifests to confirm the Express, CORS, React, and related
+  runtime dependencies remain pinned for the app and API server, with the lock
+  file mirroring those entries. 【F:package.json†L26-L50】【F:package-lock.json†L12-L14】
+- Outstanding follow-ups: failure-handling coverage for the SleeperFFHelper
+  auto-refresh loop is still pending. 【F:OUTSTANDING_TASKS.md†L11-L14】
+
+# 2025-11-05
+- Audited the PyESPN migration to confirm the Python entrypoints, Express server, frontend API helpers, and live view UI all
+  source official NFL data from PyESPN with ESPN event identifiers, backed by the end-to-end Vitest suites.
+  【F:py/espn_schedule.py†L1-L120】【F:espn-api-server.cjs†L1-L126】【F:src/lib/api/espn-data.ts†L1-L504】【F:src/components/SleeperFFHelper.tsx†L180-L256】【F:tests/espn-api/pyespnEndToEnd.test.ts†L1-L260】
+- Added explicit logging for PyESPN game and player fetch failures so the live view surfaces backend issues instead of silently
+  returning null data. 【F:src/features/live-view-pyespn/data/loadPyEspnGame.ts†L296-L323】【F:src/features/live-view-pyespn/data/usePyEspnGame.ts†L43-L63】【F:src/features/live-view-pyespn/data/useEspnPlayers.ts†L74-L118】
+- Streamed the ESPN API server output through `./dev.sh` by teeing the foreground process to `espn-api.log` and echoing PyESPN
+  Python stderr with script context so API call failures surface immediately in the active terminal. 【F:dev.sh†L171-L188】【F:espn-api-server.cjs†L33-L61】
+- Outstanding follow-ups: failure-handling coverage for the SleeperFFHelper auto-refresh loop remains the lone transition gap;
+  no redundant files required removal after the audit. 【F:OUTSTANDING_TASKS.md†L11-L13】
+
 # 2025-11-04
 - Standardized every PyESPN entrypoint to instantiate `PYESPN('nfl')`, keeping
   the scripts aligned with the vendored documentation and preventing accidental

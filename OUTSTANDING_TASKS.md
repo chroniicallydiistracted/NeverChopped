@@ -10,4 +10,5 @@
 
 - [ ] Add failure-handling coverage for the SleeperFFHelper auto-refresh loop (e.g., repeated PyESPN errors, overlapping timer guards, and console warnings).
 
-All previously tracked migration tasks are complete. Follow-up work is documented above.
+All previously tracked migration tasks remain complete; the 2025-11-05 audit confirmed the above follow-up is the only remaining
+gap.
