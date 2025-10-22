@@ -16,6 +16,20 @@ import {
 } from '../graphql/queries';
 import PyEspnLiveView from '../features/live-view-pyespn/components/PyEspnLiveView';
 import { fetchEspnSchedule } from '../lib/api/espn-data';
+import type { EspnScheduleStatus } from '../lib/api/espn-data';
+
+type ScheduleStatusCategory = EspnScheduleStatus;
+
+interface NflScheduleGame {
+  game_id: string;
+  week: number;
+  status: ScheduleStatusCategory;
+  statusLabel: string;
+  statusRaw: string | null;
+  date: string | null;
+  home: string;
+  away: string;
+}
 
 const SleeperFFHelper = () => {
   const auth = useAuth();
@@ -43,7 +57,7 @@ const SleeperFFHelper = () => {
   const [activeTeamsCount, setActiveTeamsCount] = useState<number | null>(null); // Smart-detected active teams
   const [eliminatedTeams, setEliminatedTeams] = useState<number[]>([]); // List of eliminated roster IDs
   const [projections, setProjections] = useState<any>({}); // Weekly player projections
-  const [nflSchedule, setNflSchedule] = useState<any[]>([]); // NFL game schedule with status
+  const [nflSchedule, setNflSchedule] = useState<NflScheduleGame[]>([]); // NFL game schedule with status
   const AUTH_USER_ID = auth.user?.user_id ? String(auth.user.user_id) : null;
   const USERNAME = auth.user?.username || config.username;
   const TEAM_NAME = auth.user?.display_name || config.teamName;
@@ -199,22 +213,44 @@ const SleeperFFHelper = () => {
             if (!gameId) {
               return null;
             }
+
             const homeTeam = game?.home_team ?? null;
             const awayTeam = game?.away_team ?? null;
             const homeName =
               homeTeam?.displayName ?? homeTeam?.name ?? homeTeam?.abbreviation ?? 'TBD';
             const awayName =
               awayTeam?.displayName ?? awayTeam?.name ?? awayTeam?.abbreviation ?? 'TBD';
-            return {
+
+            const status = (game?.status ?? 'unknown') as ScheduleStatusCategory;
+            const statusLabel =
+              typeof game?.status_label === 'string' && game.status_label
+                ? game.status_label
+                : 'Unknown';
+            const statusRaw =
+              typeof game?.status_raw === 'string' && game.status_raw
+                ? game.status_raw
+                : null;
+
+            const derivedWeek = Number.isFinite(Number(game?.week))
+              ? Number(game?.week)
+              : week;
+
+            const dateValue = typeof game?.date === 'string' ? game.date : null;
+
+            const entry: NflScheduleGame = {
               game_id: gameId,
-              week: game?.week ?? week,
-              status: game?.status ?? 'unknown',
-              date: game?.date ?? null,
+              week: derivedWeek,
+              status,
+              statusLabel,
+              statusRaw,
+              date: dateValue,
               home: homeName,
               away: awayName,
             };
+
+            return entry;
           })
-          .filter(Boolean);
+          .filter((value): value is NflScheduleGame => Boolean(value));
         setNflSchedule(transformedSchedule);
       } else {
         setNflSchedule([]);
@@ -611,56 +647,103 @@ const SleeperFFHelper = () => {
   // 🏈 Get NFL game status for current week
   const getGameStatus = () => {
     if (!nflSchedule.length || !nflState) return null;
-    
-    const currentWeekGames = nflSchedule.filter(game => game.week === nflState.week);
-    const complete = currentWeekGames.filter(g => g.status === 'complete').length;
-    const inProgress = currentWeekGames.filter(g => g.status === 'in_progress').length;
-    const notStarted = currentWeekGames.filter(g => g.status === 'pre_game').length;
-    
-    return {
+
+    const weekNumber = Number(nflState.week);
+    const currentWeekGames = nflSchedule.filter(game =>
+      Number.isFinite(weekNumber)
+        ? game.week === weekNumber
+        : String(game.week) === String(nflState.week),
+    );
+
+    const summary = {
       total: currentWeekGames.length,
-      complete,
-      inProgress,
-      notStarted,
-      games: currentWeekGames.sort((a, b) => {
-        // Sort by: complete first, then in_progress, then pre_game
-        const statusOrder = { 'complete': 0, 'in_progress': 1, 'pre_game': 2 };
-        return statusOrder[a.status] - statusOrder[b.status];
-      })
+      complete: 0,
+      inProgress: 0,
+      notStarted: 0,
+      postponed: 0,
+      delayed: 0,
+      canceled: 0,
+      unknown: 0,
+      games: [] as NflScheduleGame[],
     };
+
+    currentWeekGames.forEach(game => {
+      switch (game.status) {
+        case 'complete':
+          summary.complete += 1;
+          break;
+        case 'in_progress':
+          summary.inProgress += 1;
+          break;
+        case 'pre_game':
+          summary.notStarted += 1;
+          break;
+        case 'postponed':
+          summary.postponed += 1;
+          break;
+        case 'delayed':
+          summary.delayed += 1;
+          break;
+        case 'canceled':
+          summary.canceled += 1;
+          break;
+        default:
+          summary.unknown += 1;
+          break;
+      }
+    });
+
+    const statusOrder: Record<ScheduleStatusCategory, number> = {
+      in_progress: 0,
+      delayed: 1,
+      pre_game: 2,
+      complete: 3,
+      postponed: 4,
+      canceled: 5,
+      unknown: 6,
+    };
+
+    summary.games = [...currentWeekGames].sort(
+      (a, b) => statusOrder[a.status] - statusOrder[b.status],
+    );
+
+    return summary;
   };
-  
+
   // 🎯 Get player's game status (has game started?)
   const getPlayerGameStatus = (playerId: string) => {
     if (!nflSchedule.length || !nflState || !players[playerId]) return 'unknown';
-    
+
     const player = players[playerId];
     const playerTeam = player.team;
-    
+
     if (!playerTeam) return 'unknown';
-    
+
     // Find the game this player's team is in this week
-    const game = nflSchedule.find(g => 
-      g.week === nflState.week && 
+    const game = nflSchedule.find(g =>
+      (Number.isFinite(Number(nflState.week))
+        ? g.week === Number(nflState.week)
+        : String(g.week) === String(nflState.week)) &&
       (g.home === playerTeam || g.away === playerTeam)
     );
-    
+
     if (!game) return 'unknown';
-    
+
     // Return the game status: 'pre_game', 'in_progress', or 'complete'
     return game.status;
   };
-  
+
   // 🏈 Get enhanced game details for display
   const getGameDetails = (game: any) => {
     if (!game) return null;
-    
+
     const status = game.status;
+    const statusLabel = game.statusLabel || 'Unknown';
     const gameDate = new Date(game.date);
     const now = new Date();
-    
+
     // Format start time
-    const startTime = gameDate.toLocaleTimeString('en-US', { 
+    const startTime = gameDate.toLocaleTimeString('en-US', {
       hour: 'numeric', 
       minute: '2-digit',
       timeZoneName: 'short'
@@ -674,6 +757,8 @@ const SleeperFFHelper = () => {
     
     return {
       status,
+      statusLabel,
+      statusRaw: game.statusRaw ?? null,
       startTime,
       dayName,
       homeTeam: game.home,
@@ -1006,16 +1091,20 @@ const SleeperFFHelper = () => {
             
             // Check if this player's game has started
             const gameStatus = getPlayerGameStatus(playerId);
-            
-            if (gameStatus === 'pre_game') {
-              // Game hasn't started - use projection
-              hybridScore += projectedPoints;
-              playersNotStarted++;
-            } else {
-              // Game started or complete - use actual points from matchup.players_points
+            const hasStarted =
+              gameStatus === 'in_progress' ||
+              gameStatus === 'complete' ||
+              gameStatus === 'delayed';
+
+            if (hasStarted) {
+              // Game started or is in a live delay - rely on actual scoring data
               const actualPlayerPoints = m.players_points?.[playerId] || 0;
               hybridScore += actualPlayerPoints;
               playersStarted++;
+            } else {
+              // Game not underway yet — lean on projections
+              hybridScore += projectedPoints;
+              playersNotStarted++;
             }
           });
         }
@@ -2550,58 +2639,148 @@ const SleeperFFHelper = () => {
                         <p className="text-2xl font-bold text-yellow-400">{gameStatus.inProgress}</p>
                       </div>
                       <div className="bg-gray-500/20 border border-gray-500 rounded p-3">
-                        <p className="text-sm text-gray-400">Not Started</p>
+                        <p className="text-sm text-gray-400">Scheduled</p>
                         <p className="text-2xl font-bold text-gray-400">{gameStatus.notStarted}</p>
                       </div>
                     </div>
+                    {(gameStatus.postponed || gameStatus.delayed || gameStatus.canceled || gameStatus.unknown) > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {gameStatus.delayed > 0 && (
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 border border-blue-500/40 text-blue-200">
+                            Delayed: {gameStatus.delayed}
+                          </span>
+                        )}
+                        {gameStatus.postponed > 0 && (
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-orange-500/20 border border-orange-500/40 text-orange-200">
+                            Postponed: {gameStatus.postponed}
+                          </span>
+                        )}
+                        {gameStatus.canceled > 0 && (
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-red-500/20 border border-red-500/40 text-red-200">
+                            Canceled: {gameStatus.canceled}
+                          </span>
+                        )}
+                        {gameStatus.unknown > 0 && (
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-500/20 border border-slate-500/40 text-slate-200">
+                            Unknown: {gameStatus.unknown}
+                          </span>
+                        )}
+                      </div>
+                    )}
                     <div className="space-y-2 max-h-96 overflow-y-auto">
-                      {gameStatus.games.map((game: any) => {
+                      {gameStatus.games.map((game: NflScheduleGame) => {
                         const details = getGameDetails(game);
                         if (!details) return null;
-                        
+
+                        const statusCategory = game.status as ScheduleStatusCategory;
+                        const statusLabel = details.statusLabel || game.statusLabel || 'Unknown';
+
+                        const containerClass =
+                          statusCategory === 'complete'
+                            ? 'bg-green-900/20 border-green-500/30'
+                            : statusCategory === 'in_progress'
+                            ? 'bg-yellow-900/20 border-yellow-500/30'
+                            : statusCategory === 'delayed'
+                            ? 'bg-blue-900/20 border-blue-500/30'
+                            : statusCategory === 'postponed'
+                            ? 'bg-orange-900/20 border-orange-500/30'
+                            : statusCategory === 'canceled'
+                            ? 'bg-red-900/20 border-red-500/30'
+                            : 'bg-gray-900/20 border-gray-500/30';
+
+                        const badgeClass =
+                          statusCategory === 'complete'
+                            ? 'bg-green-500/40 text-green-200'
+                            : statusCategory === 'in_progress'
+                            ? 'bg-yellow-500/40 text-yellow-200 animate-pulse'
+                            : statusCategory === 'delayed'
+                            ? 'bg-blue-500/30 text-blue-100'
+                            : statusCategory === 'postponed'
+                            ? 'bg-orange-500/30 text-orange-100'
+                            : statusCategory === 'canceled'
+                            ? 'bg-red-500/30 text-red-100'
+                            : 'bg-gray-500/40 text-gray-200';
+
+                        const badgeText = (() => {
+                          switch (statusCategory) {
+                            case 'complete':
+                              return `✓ ${statusLabel.toUpperCase()}`;
+                            case 'in_progress':
+                              return `▶ ${statusLabel.toUpperCase()}`;
+                            case 'pre_game':
+                              return `⌛ ${statusLabel.toUpperCase()}`;
+                            case 'delayed':
+                              return `⏳ ${statusLabel.toUpperCase()}`;
+                            case 'postponed':
+                              return `⚠ ${statusLabel.toUpperCase()}`;
+                            case 'canceled':
+                              return `⛔ ${statusLabel.toUpperCase()}`;
+                            default:
+                              return statusLabel.toUpperCase();
+                          }
+                        })();
+
+                        let statusMessage: React.ReactNode = null;
+                        if (statusCategory === 'pre_game') {
+                          statusMessage = (
+                            <div className="text-sm text-gray-400 space-y-1">
+                              <p>📅 {details.dayName}</p>
+                              <p>🕐 {details.startTime}</p>
+                              <p className="text-xs text-gray-500">Check back for live updates</p>
+                            </div>
+                          );
+                        } else if (statusCategory === 'in_progress') {
+                          statusMessage = (
+                            <div className="text-sm text-yellow-300">
+                              <p>⚡ Game in progress - scores updating...</p>
+                              <p className="text-xs text-gray-400 mt-1">Refresh page for latest</p>
+                            </div>
+                          );
+                        } else if (statusCategory === 'complete') {
+                          statusMessage = (
+                            <div className="text-sm text-green-300">
+                              <p>✓ Game finished</p>
+                              <p className="text-xs text-gray-400">All player scores final</p>
+                            </div>
+                          );
+                        } else if (statusCategory === 'delayed') {
+                          statusMessage = (
+                            <div className="text-sm text-blue-200">
+                              <p>⏳ Game currently delayed — monitor for restart times.</p>
+                              <p className="text-xs text-gray-400 mt-1">Latest kickoff: {details.startTime}</p>
+                            </div>
+                          );
+                        } else if (statusCategory === 'postponed') {
+                          statusMessage = (
+                            <div className="text-sm text-orange-200">
+                              <p>⚠ Game postponed — check league announcements for reschedule info.</p>
+                            </div>
+                          );
+                        } else if (statusCategory === 'canceled') {
+                          statusMessage = (
+                            <div className="text-sm text-red-200">
+                              <p>⛔ Game canceled — fantasy points will not update.</p>
+                            </div>
+                          );
+                        } else {
+                          statusMessage = (
+                            <div className="text-sm text-gray-300">
+                              <p>Status unavailable — verify on ESPN if needed.</p>
+                            </div>
+                          );
+                        }
+
                         return (
-                          <div key={game.game_id} className={`p-3 rounded-lg border ${
-                            game.status === 'complete' ? 'bg-green-900/20 border-green-500/30' :
-                            game.status === 'in_progress' ? 'bg-yellow-900/20 border-yellow-500/30' :
-                            'bg-gray-900/20 border-gray-500/30'
-                          }`}>
+                          <div key={game.game_id} className={`p-3 rounded-lg border ${containerClass}`}>
                             <div className="flex items-center justify-between mb-2">
                               <span className="font-bold text-base">
                                 {details.awayTeam} @ {details.homeTeam}
                               </span>
-                              <span className={`px-3 py-1 rounded text-xs font-bold ${
-                                game.status === 'complete' ? 'bg-green-500/40 text-green-200' :
-                                game.status === 'in_progress' ? 'bg-yellow-500/40 text-yellow-200 animate-pulse' :
-                                'bg-gray-500/40 text-gray-200'
-                              }`}>
-                                {game.status === 'complete' ? '✓ FINAL' :
-                                 game.status === 'in_progress' ? '▶ LIVE' :
-                                 'UPCOMING'}
+                              <span className={`px-3 py-1 rounded text-xs font-bold ${badgeClass}`}>
+                                {badgeText}
                               </span>
                             </div>
-                            
-                            {/* Game details based on status */}
-                            {game.status === 'pre_game' && (
-                              <div className="text-sm text-gray-400 space-y-1">
-                                <p>📅 {details.dayName}</p>
-                                <p>🕐 {details.startTime}</p>
-                                <p className="text-xs text-gray-500">Check back for live updates</p>
-                              </div>
-                            )}
-                            
-                            {game.status === 'in_progress' && (
-                              <div className="text-sm text-yellow-300">
-                                <p>⚡ Game in progress - scores updating...</p>
-                                <p className="text-xs text-gray-400 mt-1">Refresh page for latest</p>
-                              </div>
-                            )}
-                            
-                            {game.status === 'complete' && (
-                              <div className="text-sm text-green-300">
-                                <p>✓ Game finished</p>
-                                <p className="text-xs text-gray-400">All player scores final</p>
-                              </div>
-                            )}
+                            {statusMessage}
                           </div>
                         );
                       })}

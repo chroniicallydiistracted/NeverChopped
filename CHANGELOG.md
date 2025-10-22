@@ -1,5 +1,8 @@
 # Changelog
 
+# 2025-10-28
+- Normalized ESPN schedule statuses and labels across the API helper, survival dashboard, and live PyESPN view, exposing postponed/delayed/canceled states with unit coverage for the normalization logic. 【F:src/lib/api/espn-data.ts†L1-L360】【F:src/components/SleeperFFHelper.tsx†L1-L2700】【F:src/features/live-view-pyespn/components/PyEspnLiveView.tsx†L1-L220】【F:src/lib/api/__tests__/espn-data.test.ts†L1-L68】
+
 # 2025-10-27
 - Added a deterministic PyESPN stub plus Vitest coverage for the Python entrypoints and `/api/espn` Express routes so contract regressions are caught without hitting live ESPN services. 【F:tests/espn-api/fakes/pyespn/__init__.py†L1-L142】【F:tests/espn-api/pyespnScripts.test.ts†L1-L53】【F:tests/espn-api/espnApiServer.test.ts†L1-L83】
 

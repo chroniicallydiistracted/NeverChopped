@@ -10,12 +10,17 @@ import FieldAnimationCanvas from './FieldAnimationCanvas';
 import PlayList from './PlayList';
 import ParticipantStats from './ParticipantStats';
 import PlaybackControls from './PlaybackControls';
+import type { EspnScheduleStatus } from '../../../lib/api/espn-data';
+
+type ScheduleStatusCategory = EspnScheduleStatus;
 
 interface ScheduleGame {
   game_id: string;
   week: number;
-  status: string;
-  date: string;
+  status: ScheduleStatusCategory;
+  statusLabel: string;
+  statusRaw: string | null;
+  date: string | null;
   home: string;
   away: string;
 }
@@ -47,7 +52,8 @@ const deriveScore = (plays: PyEspnPlay[], index: number) => {
 
 const formatGameOption = (game: ScheduleGame) => {
   const kickoff = game.date ? new Date(game.date).toLocaleString() : 'TBD';
-  return `${game.away} @ ${game.home} • ${game.status} • ${kickoff}`;
+  const statusLabel = game.statusLabel || 'Status Unknown';
+  return `${game.away} @ ${game.home} • ${statusLabel} • ${kickoff}`;
 };
 
 const PyEspnLiveView = ({ season, seasonType, week, schedule }: PyEspnLiveViewProps) => {
