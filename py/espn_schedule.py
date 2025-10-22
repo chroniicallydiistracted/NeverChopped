@@ -88,7 +88,7 @@ def main():
         print("[]")
         return
 
-    espn = PYESPN("nfl")
+    espn = PYESPN('nfl')
     schedule = load_schedule(espn, normalized_type, season)
     if schedule is None:
         print("[]")

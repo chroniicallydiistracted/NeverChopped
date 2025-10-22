@@ -1,5 +1,15 @@
 # Changelog
 
+# 2025-11-04
+- Standardized every PyESPN entrypoint to instantiate `PYESPN('nfl')`, keeping
+  the scripts aligned with the vendored documentation and preventing accidental
+  divergence from the NFL context. 【F:py/espn_pbp.py†L1-L25】【F:py/espn_schedule.py†L1-L104】【F:py/espn_game.py†L1-L18】【F:py/espn_player.py†L1-L17】
+- Re-ran the focused PyESPN script and end-to-end Vitest suites to verify the
+  corrected Python adapters continue to pass under the stubbed integration
+  environment. 【94bd8c†L1-L4】【b82591†L1-L7】
+- Outstanding follow-ups: add failure-handling coverage for the SleeperFFHelper
+  auto-refresh loop. 【F:OUTSTANDING_TASKS.md†L12-L13】
+
 # 2025-11-03
 - Isolated the PyESPN fake state per Vitest suite by teaching the stub and helper
   utilities to honor `PYESPN_FAKE_STATE_PATH`, preventing cross-test interference
