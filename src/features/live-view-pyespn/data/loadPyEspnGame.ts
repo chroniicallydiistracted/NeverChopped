@@ -1,8 +1,9 @@
-import { fetchEspnGameData } from '../../../lib/api/espn-data';
+import { fetchEspnPlayByPlay } from '../../../lib/api/espn-data';
 import type {
   PyEspnDataSource,
   PyEspnGamePayload,
   PyEspnPlay,
+  PyEspnTeam,
 } from './pyespn-types';
 
 const CACHE_TTL_MS = 30_000;
@@ -30,27 +31,46 @@ const sanitizeClockValue = (value: unknown): string | number | null => {
   return null;
 };
 
-const normalizeTeam = (team: unknown): PyEspnPlay['team'] => {
+const normalizeTeam = (team: unknown): PyEspnTeam | null => {
   if (!isRecord(team)) {
     return null;
   }
 
-  const id = 'id' in team ? team.id : null;
-  const name = 'name' in team ? team.name : null;
-  const abbreviation = 'abbreviation' in team ? team.abbreviation : null;
-  const scoreRaw = 'score' in team ? team.score : undefined;
-  const numericScore = Number(scoreRaw);
+  const source = isRecord(team.team) ? team.team : team;
+  const idValue = source.id;
+  const id = typeof idValue === 'string' || typeof idValue === 'number' ? idValue : null;
+  const displayName =
+    typeof source.displayName === 'string'
+      ? source.displayName
+      : typeof source.shortDisplayName === 'string'
+      ? source.shortDisplayName
+      : null;
+  const nameValue = typeof source.name === 'string' ? source.name : null;
+  const name = displayName ?? nameValue ?? null;
+  const abbreviation = typeof source.abbreviation === 'string' ? source.abbreviation : null;
+
+  let scoreValue: unknown = null;
+  if ('score' in team) {
+    scoreValue = (team as Record<string, unknown>).score;
+  } else if (isRecord(team.team) && 'score' in team.team) {
+    scoreValue = team.team.score;
+  }
+
+  const numericScore = Number(scoreValue);
+  const score =
+    Number.isFinite(numericScore) && numericScore >= 0
+      ? numericScore
+      : typeof scoreValue === 'number' && Number.isFinite(scoreValue)
+      ? scoreValue
+      : typeof scoreValue === 'string' && Number.isFinite(Number(scoreValue))
+      ? Number(scoreValue)
+      : null;
 
   return {
-    id: typeof id === 'string' || typeof id === 'number' ? id : null,
-    name: typeof name === 'string' ? name : null,
-    abbreviation: typeof abbreviation === 'string' ? abbreviation : null,
-    score:
-      Number.isFinite(numericScore) && numericScore >= 0
-        ? numericScore
-        : typeof scoreRaw === 'number' && Number.isFinite(scoreRaw)
-        ? scoreRaw
-        : null,
+    id,
+    name,
+    abbreviation,
+    score,
   };
 };
 
@@ -59,12 +79,20 @@ const normalizePlay = (play: unknown): PyEspnPlay | null => {
     return null;
   }
 
-  const id = typeof play.id === 'string' ? play.id : String(play.id ?? '');
+  const rawId = play.id ?? play.uid ?? null;
+  const id =
+    typeof rawId === 'string'
+      ? rawId
+      : rawId !== null && rawId !== undefined
+      ? String(rawId)
+      : '';
   if (!id) {
     return null;
   }
 
-  const sequence = Number(play.sequence ?? play.sequence_number ?? NaN);
+  const sequenceCandidate =
+    play.sequence ?? play.sequence_number ?? play.sequenceNumber ?? (typeof play.id === 'number' ? play.id : undefined);
+  const sequence = Number(sequenceCandidate);
   if (!Number.isFinite(sequence)) {
     return null;
   }
@@ -104,7 +132,11 @@ const normalizePlay = (play: unknown): PyEspnPlay | null => {
 
   const clockRecord = isRecord(play.clock) ? play.clock : null;
   const displayValue =
-    clockRecord && typeof clockRecord.displayValue === 'string' ? clockRecord.displayValue : null;
+    clockRecord && typeof clockRecord.displayValue === 'string'
+      ? clockRecord.displayValue
+      : typeof clockRecord?.display_value === 'string'
+      ? clockRecord.display_value
+      : null;
   const fallbackMinutes = displayValue ? displayValue.split(':')[0] : null;
   const fallbackSeconds = displayValue ? displayValue.split(':')[1] : null;
 
@@ -145,35 +177,124 @@ const normalizePlay = (play: unknown): PyEspnPlay | null => {
   };
 };
 
+const extractStatusText = (status: Record<string, unknown> | null): string | null => {
+  if (!status) {
+    return null;
+  }
+  const typeValue = status.type;
+  if (isRecord(typeValue)) {
+    if (typeof typeValue.state === 'string' && typeValue.state) {
+      return typeValue.state;
+    }
+    if (typeof typeValue.description === 'string' && typeValue.description) {
+      return typeValue.description;
+    }
+    if (typeof typeValue.detail === 'string' && typeValue.detail) {
+      return typeValue.detail;
+    }
+    if (typeof typeValue.shortDetail === 'string' && typeValue.shortDetail) {
+      return typeValue.shortDetail;
+    }
+  } else if (typeof typeValue === 'string') {
+    return typeValue;
+  }
+  if (typeof status.name === 'string' && status.name) {
+    return status.name;
+  }
+  if (typeof status.text === 'string' && status.text) {
+    return status.text;
+  }
+  return null;
+};
+
 const normalizePayload = (payload: unknown): PyEspnGamePayload | null => {
   if (!isRecord(payload)) {
     return null;
   }
 
-  const game = isRecord(payload.game) ? payload.game : null;
-  const playsRaw = Array.isArray(payload.plays) ? payload.plays : [];
-  const plays: PyEspnPlay[] = playsRaw
+  const rawId = payload.id ?? payload.event_id ?? null;
+  const id =
+    typeof rawId === 'string'
+      ? rawId
+      : rawId !== null && rawId !== undefined
+      ? String(rawId)
+      : '';
+  if (!id) {
+    return null;
+  }
+
+  const competitions = Array.isArray(payload.competitions) ? payload.competitions : [];
+  const competition = competitions.find(value => isRecord(value)) as Record<string, unknown> | undefined;
+  const statusRecord = competition && isRecord(competition.status) ? (competition.status as Record<string, unknown>) : null;
+  const statusText = extractStatusText(statusRecord);
+
+  let clock: string | null = null;
+  if (statusRecord) {
+    if (typeof statusRecord.displayClock === 'string') {
+      clock = statusRecord.displayClock;
+    } else if (typeof statusRecord.clock === 'string') {
+      clock = statusRecord.clock;
+    }
+  }
+
+  let quarter: number | null = null;
+  if (statusRecord) {
+    const periodValue = statusRecord.period;
+    if (isRecord(periodValue) && Number.isFinite(Number(periodValue.number))) {
+      quarter = Number(periodValue.number);
+    } else if (Number.isFinite(Number(periodValue))) {
+      quarter = Number(periodValue);
+    }
+  }
+
+  const competitors =
+    competition && Array.isArray(competition.competitors) ? competition.competitors : [];
+  const homeCompetitor = competitors.find(entry => isRecord(entry) && entry.homeAway === 'home');
+  const awayCompetitor = competitors.find(entry => isRecord(entry) && entry.homeAway === 'away');
+
+  const playsSource: unknown[] = [];
+  const drivesRaw = payload.drives;
+  const drivesArray = Array.isArray(drivesRaw)
+    ? drivesRaw
+    : isRecord(drivesRaw) && Array.isArray(drivesRaw.items)
+    ? (drivesRaw.items as unknown[])
+    : [];
+
+  drivesArray.forEach(drive => {
+    if (!isRecord(drive)) {
+      return;
+    }
+    const drivePlays = drive.plays;
+    if (Array.isArray(drivePlays)) {
+      playsSource.push(...drivePlays);
+    } else if (isRecord(drivePlays) && Array.isArray(drivePlays.items)) {
+      playsSource.push(...drivePlays.items);
+    }
+  });
+
+  if (!playsSource.length) {
+    const playsRaw = payload.plays;
+    if (Array.isArray(playsRaw)) {
+      playsSource.push(...playsRaw);
+    } else if (isRecord(playsRaw) && Array.isArray(playsRaw.items)) {
+      playsSource.push(...playsRaw.items);
+    }
+  }
+
+  const plays: PyEspnPlay[] = playsSource
     .map(normalizePlay)
     .filter((play): play is PyEspnPlay => play !== null)
     .sort((a, b) => a.sequence - b.sequence);
 
-  if (!game) {
-    return null;
-  }
-
-  const meta = {
-    id: typeof game.id === 'string' ? game.id : String(game.id ?? ''),
-    date: typeof game.date === 'string' ? game.date : null,
-    status: typeof game.status === 'string' ? game.status : null,
-    quarter: Number.isFinite(Number(game.quarter)) ? Number(game.quarter) : null,
-    clock: typeof game.clock === 'string' ? game.clock : null,
-    homeTeam: normalizeTeam(game.homeTeam),
-    awayTeam: normalizeTeam(game.awayTeam),
-  } as PyEspnGamePayload['game'];
-
-  if (!meta.id) {
-    return null;
-  }
+  const meta: PyEspnGamePayload['game'] = {
+    id,
+    date: typeof payload.date === 'string' ? payload.date : null,
+    status: statusText,
+    quarter,
+    clock,
+    homeTeam: normalizeTeam(homeCompetitor),
+    awayTeam: normalizeTeam(awayCompetitor),
+  };
 
   return {
     game: meta,
@@ -197,7 +318,7 @@ export async function loadPyEspnGame({ gameId, forceRefresh }: LoadPyEspnGameOpt
     return cached.data;
   }
 
-  const payload = await fetchEspnGameData(gameId);
+  const payload = await fetchEspnPlayByPlay(gameId);
   const normalized = normalizePayload(payload);
   cache.set(gameId, { data: normalized, fetchedAt: now });
   return normalized;

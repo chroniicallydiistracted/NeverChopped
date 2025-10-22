@@ -184,20 +184,40 @@ const SleeperFFHelper = () => {
     }
   };
 
-  const loadNflScheduleFromEspn = async (week: number, year: number) => {
+  const loadNflScheduleFromEspn = async (
+    seasonType: string,
+    week: number,
+    year: number,
+  ) => {
     try {
-      const schedule = await fetchEspnSchedule(week, year);
-      if (schedule && Array.isArray(schedule)) {
-        // Transform the schedule data to match our expected format
-        const transformedSchedule = schedule.map(game => ({
-          game_id: game.id,
-          week: game.week,
-          status: game.status,
-          date: game.date,
-          home: game.home_team,
-          away: game.away_team,
-        }));
+      const normalizedSeasonType = seasonType && seasonType.length > 0 ? seasonType : 'regular';
+      const schedule = await fetchEspnSchedule(normalizedSeasonType, year, week);
+      if (Array.isArray(schedule) && schedule.length > 0) {
+        const transformedSchedule = schedule
+          .map(game => {
+            const gameId = game?.game_id ? String(game.game_id) : null;
+            if (!gameId) {
+              return null;
+            }
+            const homeTeam = game?.home_team ?? null;
+            const awayTeam = game?.away_team ?? null;
+            const homeName =
+              homeTeam?.displayName ?? homeTeam?.name ?? homeTeam?.abbreviation ?? 'TBD';
+            const awayName =
+              awayTeam?.displayName ?? awayTeam?.name ?? awayTeam?.abbreviation ?? 'TBD';
+            return {
+              game_id: gameId,
+              week: game?.week ?? week,
+              status: game?.status ?? 'unknown',
+              date: game?.date ?? null,
+              home: homeName,
+              away: awayName,
+            };
+          })
+          .filter(Boolean);
         setNflSchedule(transformedSchedule);
+      } else {
+        setNflSchedule([]);
       }
     } catch (err) {
       console.warn('Failed to load NFL schedule from ESPN:', err);
@@ -219,11 +239,6 @@ const SleeperFFHelper = () => {
     try {
       setRefreshing(true);
       setError(null);
-
-      // Load NFL schedule from ESPN
-      if (nflState?.week && nflState?.season) {
-        await loadNflScheduleFromEspn(nflState.week, nflState.season);
-      }
 
       const [stateData, leagueDetails, rostersResult, usersResult, playersData] = await Promise.all([
         fetchNflStateData(),
@@ -289,17 +304,12 @@ const SleeperFFHelper = () => {
         setProjections({});
       }
 
-      if (stateData?.season && stateData?.season_type) {
-        try {
-          const scheduleData = await fetchSleeperJson(
-            `https://api.sleeper.app/schedule/nfl/${stateData.season_type}/${stateData.season}`
-          );
-          setNflSchedule(scheduleData || []);
-          console.log(`🏈 Loaded NFL schedule: ${Array.isArray(scheduleData) ? scheduleData.length : 0} games`);
-        } catch (schedErr) {
-          console.warn('⚠️ Could not load NFL schedule:', schedErr);
-          setNflSchedule([]);
-        }
+      if (stateData?.season && stateData?.season_type && stateData?.week) {
+        await loadNflScheduleFromEspn(
+          String(stateData.season_type),
+          Number(stateData.week),
+          Number(stateData.season),
+        );
       } else {
         setNflSchedule([]);
       }
