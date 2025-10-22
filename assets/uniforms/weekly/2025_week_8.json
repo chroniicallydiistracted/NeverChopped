@@ -20,7 +20,13 @@
       "game_id": "2025_BUF-CAR^8",
       "away": "BUF",
       "home": "CAR",
-      "uniforms": {},
+      "uniforms": {
+        "BUF": {
+          "year": "2025",
+          "style": "B",
+          "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_BUF_B.png"
+        }
+      },
       "field": {}
     },
     {
@@ -72,7 +78,13 @@
       "game_id": "2025_NYJ-CIN^8",
       "away": "NYJ",
       "home": "CIN",
-      "uniforms": {},
+      "uniforms": {
+        "CIN": {
+          "year": "2025",
+          "style": "H",
+          "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_CIN_H.png"
+        }
+      },
       "field": {}
     },
     {
@@ -146,6 +158,6 @@
       "field": {}
     }
   ],
-  "scraped_at": "2025-10-21T07:23:39.561Z",
+  "scraped_at": "2025-10-22T16:06:20.993Z",
   "source": "https://www.gridiron-uniforms.com/GUD/controller/controller.php?action=weekly&week=8&year=2025"
 }
