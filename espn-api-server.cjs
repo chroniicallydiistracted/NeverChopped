@@ -9,6 +9,31 @@ const PORT = 3001;
 app.use(cors());
 app.use(express.json());
 
+function createCache(ttlMs) {
+  const store = new Map();
+  return {
+    get(key) {
+      const entry = store.get(key);
+      if (!entry) {
+        return null;
+      }
+      if (Date.now() - entry.timestamp > ttlMs) {
+        store.delete(key);
+        return null;
+      }
+      return entry.value;
+    },
+    set(key, value) {
+      store.set(key, { value, timestamp: Date.now() });
+    },
+  };
+}
+
+const scheduleCache = createCache(5 * 60 * 1000);
+const gameCache = createCache(30 * 1000);
+const pbpCache = createCache(10 * 1000);
+const playerCache = createCache(60 * 60 * 1000);
+
 function runPy(script, args = []) {
   return new Promise((resolve, reject) => {
     const proc = spawn('python', [script, ...args], {
@@ -44,10 +69,21 @@ const router = express.Router();
 
 router.get('/schedule/:seasonType/:season/:week', async (req, res) => {
   const { seasonType, season, week } = req.params;
+  const forceRefresh =
+    req.query.force === 'true' || req.query.force === '1' || req.query.force === 'refresh';
+  const cacheKey = `${seasonType}:${season}:${week}`.toLowerCase();
   try {
+    if (!forceRefresh) {
+      const cached = scheduleCache.get(cacheKey);
+      if (cached) {
+        res.json(cached);
+        return;
+      }
+    }
     const script = path.join(process.cwd(), 'py/espn_schedule.py');
     const raw = await runPy(script, [seasonType, season, week]);
     const data = JSON.parse(raw || '[]');
+    scheduleCache.set(cacheKey, data);
     res.json(data);
   } catch (err) {
     console.error('Failed to fetch ESPN schedule', err);
@@ -57,10 +93,21 @@ router.get('/schedule/:seasonType/:season/:week', async (req, res) => {
 
 router.get('/game/:eventId', async (req, res) => {
   const { eventId } = req.params;
+  const forceRefresh =
+    req.query.force === 'true' || req.query.force === '1' || req.query.force === 'refresh';
+  const cacheKey = String(eventId);
   try {
+    if (!forceRefresh) {
+      const cached = gameCache.get(cacheKey);
+      if (cached) {
+        res.json(cached);
+        return;
+      }
+    }
     const script = path.join(process.cwd(), 'py/espn_game.py');
     const raw = await runPy(script, [eventId]);
     const data = JSON.parse(raw || '{}');
+    gameCache.set(cacheKey, data);
     res.json(data);
   } catch (err) {
     console.error('Failed to fetch ESPN game info', err);
@@ -70,10 +117,21 @@ router.get('/game/:eventId', async (req, res) => {
 
 router.get('/game/:eventId/pbp', async (req, res) => {
   const { eventId } = req.params;
+  const forceRefresh =
+    req.query.force === 'true' || req.query.force === '1' || req.query.force === 'refresh';
+  const cacheKey = String(eventId);
   try {
+    if (!forceRefresh) {
+      const cached = pbpCache.get(cacheKey);
+      if (cached) {
+        res.json(cached);
+        return;
+      }
+    }
     const script = path.join(process.cwd(), 'py/espn_pbp.py');
     const raw = await runPy(script, [eventId]);
     const data = JSON.parse(raw || '{}');
+    pbpCache.set(cacheKey, data);
     res.json(data);
   } catch (err) {
     console.error('Failed to fetch ESPN play-by-play', err);
@@ -83,10 +141,21 @@ router.get('/game/:eventId/pbp', async (req, res) => {
 
 router.get('/player/:playerId', async (req, res) => {
   const { playerId } = req.params;
+  const forceRefresh =
+    req.query.force === 'true' || req.query.force === '1' || req.query.force === 'refresh';
+  const cacheKey = String(playerId);
   try {
+    if (!forceRefresh) {
+      const cached = playerCache.get(cacheKey);
+      if (cached) {
+        res.json(cached);
+        return;
+      }
+    }
     const script = path.join(process.cwd(), 'py/espn_player.py');
     const raw = await runPy(script, [playerId]);
     const data = JSON.parse(raw || '{}');
+    playerCache.set(cacheKey, data);
     res.json(data);
   } catch (err) {
     console.error('Failed to fetch ESPN player info', err);
