@@ -1,5 +1,10 @@
 # Changelog
 
+# 2025-10-31
+- Added a jsdom-backed end-to-end regression suite that boots the PyESPN Express server, exercises the Python scripts, TypeScript API helpers, loader, and hook through real HTTP calls using the stubbed PyESPN package, and serialized the run under Vitest to guarantee deterministic coverage. 【F:tests/espn-api/pyespnEndToEnd.test.ts†L1-L178】【F:tests/espn-api/fakes/pyespn/__init__.py†L1-L214】
+- Introduced a minimal Vitest configuration that disables worker threading so the ESPN API server integration specs share a single process, preventing port collisions during the new full-stack runs. 【F:vitest.config.ts†L1-L6】
+- Outstanding follow-ups: add the automated PyESPN schedule refresh inside `SleeperFFHelper` and ship the UI integration test for the manual Refresh flow. 【F:OUTSTANDING_TASKS.md†L6-L8】
+
 # 2025-10-30
 - Enabled force-refresh handling for PyESPN schedule fetches so manual retries bypass cached data, and covered the new path with focused tests. 【F:src/components/SleeperFFHelper.tsx†L203-L276】【F:src/lib/api/__tests__/espn-data.test.ts†L241-L258】
 - Rebuilt `dev.sh` around the PyESPN workflow with foreground/background controls, dependency checks, and a dedicated stop command. 【F:dev.sh†L1-L237】
