@@ -6,13 +6,24 @@ export interface EspnScheduleTeam {
   [key: string]: unknown;
 }
 
+export type EspnScheduleStatus =
+  | 'pre_game'
+  | 'in_progress'
+  | 'complete'
+  | 'postponed'
+  | 'canceled'
+  | 'delayed'
+  | 'unknown';
+
 export interface EspnScheduleEntry {
   game_id: string | null;
   week: number | null;
   season: number | null;
   season_type: string | null;
   date: string | null;
-  status: string | null;
+  status: EspnScheduleStatus;
+  status_label: string;
+  status_raw: string | null;
   home_team: EspnScheduleTeam | null;
   away_team: EspnScheduleTeam | null;
 }
@@ -66,6 +77,83 @@ const parseRecordArray = (value: unknown): Record<string, unknown>[] => {
     return [];
   }
   return value.filter(isRecord) as Record<string, unknown>[];
+};
+
+const toTitleCase = (value: string): string =>
+  value
+    .split(' ')
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+
+const deriveScheduleStatus = (
+  rawStatus: string | null,
+): { normalized: EspnScheduleStatus; label: string; raw: string | null } => {
+  if (!rawStatus) {
+    return { normalized: 'unknown', label: 'Unknown', raw: null };
+  }
+
+  const trimmed = rawStatus.trim();
+  if (!trimmed) {
+    return { normalized: 'unknown', label: 'Unknown', raw: null };
+  }
+
+  const key = trimmed
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
+
+  let normalized: EspnScheduleStatus = 'unknown';
+  if (key.includes('in_progress') || key.includes('inprogress') || key === 'live') {
+    normalized = 'in_progress';
+  } else if (
+    key.includes('final') ||
+    key.includes('complete') ||
+    key.includes('postgame') ||
+    key.includes('post_game') ||
+    key.includes('finished') ||
+    key.includes('ended')
+  ) {
+    normalized = 'complete';
+  } else if (
+    key === 'pre' ||
+    key.includes('pregame') ||
+    key.includes('pre_game') ||
+    key.includes('scheduled') ||
+    key.includes('preview') ||
+    key.includes('upcoming') ||
+    key.includes('not_started')
+  ) {
+    normalized = 'pre_game';
+  } else if (key.includes('postpon')) {
+    normalized = 'postponed';
+  } else if (key.includes('cancel')) {
+    normalized = 'canceled';
+  } else if (key.includes('delay')) {
+    normalized = 'delayed';
+  }
+
+  const label = (() => {
+    switch (normalized) {
+      case 'in_progress':
+        return 'Live';
+      case 'complete':
+        return 'Final';
+      case 'pre_game':
+        return 'Scheduled';
+      case 'postponed':
+        return 'Postponed';
+      case 'canceled':
+        return 'Canceled';
+      case 'delayed':
+        return 'Delayed';
+      default:
+        return toTitleCase(trimmed.replace(/[_-]+/g, ' '));
+    }
+  })();
+
+  return { normalized, label, raw: trimmed };
 };
 
 const parseCompetitionStatus = (value: unknown): EspnCompetitionStatus | null => {
@@ -253,7 +341,8 @@ const parseScheduleEntry = (value: unknown): EspnScheduleEntry | null => {
   const season = Number.isFinite(Number(value.season)) ? Number(value.season) : null;
   const seasonType = typeof value.season_type === 'string' ? value.season_type : null;
   const date = typeof value.date === 'string' ? value.date : null;
-  const status = typeof value.status === 'string' ? value.status : null;
+  const rawStatus = typeof value.status === 'string' ? value.status : null;
+  const { normalized, label, raw } = deriveScheduleStatus(rawStatus);
 
   const homeTeam = parseTeam(value.home_team);
   const awayTeam = parseTeam(value.away_team);
@@ -264,7 +353,9 @@ const parseScheduleEntry = (value: unknown): EspnScheduleEntry | null => {
     season,
     season_type: seasonType,
     date,
-    status,
+    status: normalized,
+    status_label: label,
+    status_raw: raw,
     home_team: homeTeam,
     away_team: awayTeam,
   };
