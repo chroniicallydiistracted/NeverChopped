@@ -12,7 +12,7 @@ def main():
     except ValueError:
         print("{}")
         return
-    espn = PYESPN("nfl")
+    espn = PYESPN('nfl')
     event = espn.get_game_info(event_id=event_id)
     event.load_play_by_play()
     payload = event.to_dict(load_play_by_play=True)

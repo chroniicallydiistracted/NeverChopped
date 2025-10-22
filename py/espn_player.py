@@ -12,7 +12,7 @@ def main():
     except ValueError:
         print("{}")
         return
-    espn = PYESPN("nfl")
+    espn = PYESPN('nfl')
     player = espn.get_player_info(player_id=player_id)
     print(json.dumps(player.to_dict(), ensure_ascii=False))
 
