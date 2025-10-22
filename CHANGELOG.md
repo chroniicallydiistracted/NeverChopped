@@ -1,5 +1,10 @@
 # Changelog
 
+# 2025-10-30
+- Enabled force-refresh handling for PyESPN schedule fetches so manual retries bypass cached data, and covered the new path with focused tests. 【F:src/components/SleeperFFHelper.tsx†L203-L276】【F:src/lib/api/__tests__/espn-data.test.ts†L241-L258】
+- Rebuilt `dev.sh` around the PyESPN workflow with foreground/background controls, dependency checks, and a dedicated stop command. 【F:dev.sh†L1-L237】
+- Removed tracked build/debug artifacts and extended `.gitignore` to keep generated logs, PIDs, and dist bundles out of version control. 【F:.gitignore†L33-L39】
+
 # 2025-10-29
 - Expanded the ESPN schedule status normalization to recognize halftime, resumption, rescheduled, and cancellation variants while keeping labels aligned with live PyESPN responses, and added exhaustive unit coverage for the new mappings. 【F:src/lib/api/espn-data.ts†L61-L154】【F:src/lib/api/__tests__/espn-data.test.ts†L1-L118】
 
