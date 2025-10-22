@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resetFakeState, updateFakeEvent } from './stateUtils';
 
 const execFileAsync = promisify(execFile);
 const __filename = fileURLToPath(import.meta.url);
@@ -26,6 +27,14 @@ const runPythonScript = async (scriptName: string, args: Array<string | number>)
 };
 
 describe('PyESPN Python entrypoints', () => {
+  beforeEach(async () => {
+    await resetFakeState();
+  });
+
+  afterEach(async () => {
+    await resetFakeState();
+  });
+
   it('emits a normalized schedule payload', async () => {
     const raw = await runPythonScript('espn_schedule.py', ['regular', 2025, 7]);
     const parsed = JSON.parse(raw) as Array<Record<string, unknown>>;
@@ -62,5 +71,43 @@ describe('PyESPN Python entrypoints', () => {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     expect(parsed.id).toBe('15847');
     expect(parsed.fullName).toBe('Mock Quarterback');
+  });
+
+  it('supports preseason, postseason, and play-in schedule types', async () => {
+    const preseasonRaw = await runPythonScript('espn_schedule.py', ['Pre-Season', 2025, 1]);
+    const preseason = JSON.parse(preseasonRaw) as Array<Record<string, unknown>>;
+    expect(preseason[0]?.game_id).toBe('401770101');
+
+    const postseasonRaw = await runPythonScript('espn_schedule.py', ['post', 2026, 1]);
+    const postseason = JSON.parse(postseasonRaw) as Array<Record<string, unknown>>;
+    expect(postseason[0]?.game_id).toBe('401770201');
+
+    const playInRaw = await runPythonScript('espn_schedule.py', ['play-in', 2026, 1]);
+    const playIn = JSON.parse(playInRaw) as Array<Record<string, unknown>>;
+    expect(playIn[0]?.game_id).toBe('401770301');
+  });
+
+  it('returns an empty array when invalid numeric arguments are supplied', async () => {
+    const raw = await runPythonScript('espn_schedule.py', ['regular', 'not-a-year', 'week']);
+    const parsed = JSON.parse(raw) as Array<unknown>;
+    expect(parsed).toEqual([]);
+  });
+
+  it('reflects updated play-by-play state when the data changes', async () => {
+    await updateFakeEvent('401770001', event => {
+      const plays = Array.isArray(event.plays) ? event.plays : [];
+      plays.push({
+        id: 'play-99',
+        sequence: 99,
+        text: 'Updated fake play for refresh validation',
+        clock: { displayValue: '10:00' },
+      });
+      event.plays = plays;
+    });
+
+    const raw = await runPythonScript('espn_pbp.py', [401770001]);
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const plays = (parsed.plays as Array<Record<string, unknown>>) ?? [];
+    expect(plays.some(play => play.id === 'play-99')).toBe(true);
   });
 });

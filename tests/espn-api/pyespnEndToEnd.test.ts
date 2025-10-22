@@ -10,7 +10,7 @@ import {
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cleanup, renderHook, waitFor } from '@testing-library/react';
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import {
   fetchEspnEvent,
   fetchEspnPlayByPlay,
@@ -22,6 +22,7 @@ import {
   loadPyEspnGame,
 } from '../../src/features/live-view-pyespn/data/loadPyEspnGame';
 import { usePyEspnGame } from '../../src/features/live-view-pyespn/data/usePyEspnGame';
+import { resetFakeState, updateFakeEvent } from './stateUtils';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -79,6 +80,7 @@ let serverProcess: ChildProcessWithoutNullStreams | null = null;
 
 describe('PyESPN end-to-end integration', () => {
   beforeAll(async () => {
+    await resetFakeState();
     serverProcess = spawn('node', ['espn-api-server.cjs'], {
       cwd: repoRoot,
       env: {
@@ -105,9 +107,10 @@ describe('PyESPN end-to-end integration', () => {
     }) as typeof globalThis.fetch;
   }, 20000);
 
-  afterEach(() => {
+  afterEach(async () => {
     clearPyEspnGameCache();
     cleanup();
+    await resetFakeState();
   });
 
   afterAll(() => {
@@ -139,6 +142,19 @@ describe('PyESPN end-to-end integration', () => {
     expect(player?.fullName).toBe('Mock Quarterback');
   }, 20000);
 
+  it('refreshes schedule entries after state updates when forceRefresh is set', async () => {
+    const initial = await fetchEspnSchedule('regular', 2025, 7);
+    expect(initial[0]?.status_label).toBe('Live');
+
+    await updateFakeEvent('401770001', event => {
+      event.status = 'post';
+    });
+
+    const refreshed = await fetchEspnSchedule('regular', 2025, 7, { forceRefresh: true });
+    expect(refreshed[0]?.status).toBe('complete');
+    expect(refreshed[0]?.status_label).toBe('Final');
+  }, 20000);
+
   it('normalizes combined game payloads via loadPyEspnGame', async () => {
     const result = await loadPyEspnGame({ gameId: '401770001', forceRefresh: true });
     expect(result).not.toBeNull();
@@ -148,6 +164,37 @@ describe('PyESPN end-to-end integration', () => {
       id: 'play-1',
       sequence: 1,
     });
+
+    await updateFakeEvent('401770001', event => {
+      const plays = Array.isArray(event.plays) ? [...event.plays] : [];
+      plays.push({
+        id: 'play-77',
+        sequence: 77,
+        text: 'New play pushed after refresh',
+        clock: { displayValue: '09:59' },
+      });
+      event.plays = plays;
+      const homeTeam =
+        event.home_team && typeof event.home_team === 'object'
+          ? (event.home_team as Record<string, unknown>)
+          : null;
+      if (homeTeam) {
+        homeTeam.score = 14;
+      }
+      const awayTeam =
+        event.away_team && typeof event.away_team === 'object'
+          ? (event.away_team as Record<string, unknown>)
+          : null;
+      if (awayTeam) {
+        awayTeam.score = 7;
+      }
+      event.status = 'in-progress';
+    });
+
+    const refreshed = await loadPyEspnGame({ gameId: '401770001', forceRefresh: true });
+    expect(refreshed?.plays.some(play => play.id === 'play-77')).toBe(true);
+    expect(refreshed?.game.homeTeam?.score).toBe(14);
+    expect(refreshed?.game.awayTeam?.score).toBe(7);
   }, 20000);
 
   it('hydrates the usePyEspnGame hook against live endpoints', async () => {
@@ -167,5 +214,21 @@ describe('PyESPN end-to-end integration', () => {
     expect(result.current.data?.game.id).toBe('401770001');
     expect(result.current.data?.plays.length).toBeGreaterThan(0);
     expect(result.current.lastUpdated).not.toBeNull();
+
+    await updateFakeEvent('401770001', event => {
+      if (Array.isArray(event.plays) && event.plays[0] && typeof event.plays[0] === 'object') {
+        (event.plays[0] as Record<string, unknown>).text = 'Hook refreshed play text';
+      }
+      event.status = 'post';
+    });
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    await waitFor(() => {
+      expect(result.current.data?.plays[0]?.text).toBe('Hook refreshed play text');
+    });
+    expect(result.current.data?.game.status).toBe('post');
   }, 20000);
 });

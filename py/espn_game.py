@@ -14,7 +14,7 @@ def main():
         return
     espn = PYESPN("nfl")
     event = espn.get_game_info(event_id=event_id)
-    print(json.dumps(event.to_dict(), ensure_ascii=False))
+    print(json.dumps(event.to_dict(load_play_by_play=False), ensure_ascii=False))
 
 
 if __name__ == "__main__":
