@@ -1,5 +1,8 @@
 # Changelog
 
+# 2025-10-29
+- Expanded the ESPN schedule status normalization to recognize halftime, resumption, rescheduled, and cancellation variants while keeping labels aligned with live PyESPN responses, and added exhaustive unit coverage for the new mappings. 【F:src/lib/api/espn-data.ts†L61-L154】【F:src/lib/api/__tests__/espn-data.test.ts†L1-L118】
+
 # 2025-10-28
 - Normalized ESPN schedule statuses and labels across the API helper, survival dashboard, and live PyESPN view, exposing postponed/delayed/canceled states with unit coverage for the normalization logic. 【F:src/lib/api/espn-data.ts†L1-L360】【F:src/components/SleeperFFHelper.tsx†L1-L2700】【F:src/features/live-view-pyespn/components/PyEspnLiveView.tsx†L1-L220】【F:src/lib/api/__tests__/espn-data.test.ts†L1-L68】
 

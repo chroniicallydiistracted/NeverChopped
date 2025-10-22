@@ -86,6 +86,12 @@ const toTitleCase = (value: string): string =>
     .map(part => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
+const containsAny = (value: string, fragments: string[]): boolean =>
+  fragments.some(fragment => value.includes(fragment));
+
+const equalsAny = (value: string, matches: string[]): boolean =>
+  matches.includes(value);
+
 const deriveScheduleStatus = (
   rawStatus: string | null,
 ): { normalized: EspnScheduleStatus; label: string; raw: string | null } => {
@@ -95,7 +101,7 @@ const deriveScheduleStatus = (
 
   const trimmed = rawStatus.trim();
   if (!trimmed) {
-    return { normalized: 'unknown', label: 'Unknown', raw: null };
+    return { normalized: 'unknown', label: 'Unknown', raw: null }; 
   }
 
   const key = trimmed
@@ -104,34 +110,107 @@ const deriveScheduleStatus = (
     .replace(/_+/g, '_')
     .replace(/^_|_$/g, '');
 
+  const postponed = containsAny(key, ['postpon', 'postpone', 'resched', 'ppd']);
+  const canceled = containsAny(key, ['cancel', 'forfeit', 'no_contest', 'abandon']);
+  const delayed = containsAny(key, [
+    'delay',
+    'suspend',
+    'awaiting_resumption',
+    'awaiting_resume',
+    'resume_play',
+    'weather',
+    'lightning',
+    'thunder',
+    'storm',
+    'travel',
+    'maintenance',
+  ]);
+  const complete =
+    equalsAny(key, ['post']) ||
+    containsAny(key, [
+      'final',
+      'complete',
+      'postgame',
+      'post_game',
+      'finished',
+      'ended',
+      'game_over',
+      'fulltime',
+      'finalized',
+      'final_ot',
+      'final_overtime',
+      'final_pen',
+      'end_of_game',
+    ]);
+  const preGame =
+    equalsAny(key, ['pre']) ||
+    containsAny(key, [
+      'pregame',
+      'pre_game',
+      'scheduled',
+      'schedule',
+      'preview',
+      'upcoming',
+      'not_started',
+      'time_tbd',
+      'tbd',
+      'tba',
+      'to_be_determined',
+      'to_be_announced',
+      'warmup',
+      'warm_up',
+      'lineup',
+      'tentative',
+      'flex',
+      'awaiting_start',
+      'waiting_start',
+      'pre_event',
+    ]);
+  const inProgress =
+    containsAny(key, [
+      'in_progress',
+      'inprogress',
+      'live',
+      'halftime',
+      'midgame',
+      'mid_game',
+      'end_of_',
+      'endperiod',
+      'end_period',
+      '2nd_half',
+      'second_half',
+      'third_quarter',
+      '3rd_quarter',
+      'fourth_quarter',
+      '4th_quarter',
+      'overtime',
+      'ot',
+      'start_of',
+      'kickoff',
+      'resumed',
+      'q1',
+      'q2',
+      'q3',
+      'q4',
+      'first_quarter',
+      'second_quarter',
+      'third_quarter',
+      'fourth_quarter',
+    ]) || equalsAny(key, ['live']);
+
   let normalized: EspnScheduleStatus = 'unknown';
-  if (key.includes('in_progress') || key.includes('inprogress') || key === 'live') {
-    normalized = 'in_progress';
-  } else if (
-    key.includes('final') ||
-    key.includes('complete') ||
-    key.includes('postgame') ||
-    key.includes('post_game') ||
-    key.includes('finished') ||
-    key.includes('ended')
-  ) {
-    normalized = 'complete';
-  } else if (
-    key === 'pre' ||
-    key.includes('pregame') ||
-    key.includes('pre_game') ||
-    key.includes('scheduled') ||
-    key.includes('preview') ||
-    key.includes('upcoming') ||
-    key.includes('not_started')
-  ) {
-    normalized = 'pre_game';
-  } else if (key.includes('postpon')) {
+  if (postponed) {
     normalized = 'postponed';
-  } else if (key.includes('cancel')) {
+  } else if (canceled) {
     normalized = 'canceled';
-  } else if (key.includes('delay')) {
+  } else if (delayed) {
     normalized = 'delayed';
+  } else if (complete) {
+    normalized = 'complete';
+  } else if (preGame) {
+    normalized = 'pre_game';
+  } else if (inProgress) {
+    normalized = 'in_progress';
   }
 
   const label = (() => {
