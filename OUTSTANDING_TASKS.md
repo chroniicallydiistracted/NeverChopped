@@ -9,9 +9,10 @@
 - [x] Confirm all pyESPN scripts are formatted correctly and will succeed in production **URGENT**
 
 - [ ] Add failure-handling coverage for the SleeperFFHelper auto-refresh loop (e.g., repeated PyESPN errors, overlapping timer guards, and console warnings).
+- [ ] Complete a full repository audit for redundant or deprecated files so we can document and remove any leftovers after the PyESPN migration.
 
-All previously tracked migration tasks remain complete; the 2025-11-05 audit confirmed the above follow-up is the only remaining
-gap.
+All previously tracked migration tasks remain complete; the 2025-11-05 audit confirmed the above follow-ups are the only
+remaining gaps.
 
-2025-11-07 repository review confirmed no redundant or deprecated files require removal beyond the existing failure-handling
-coverage follow-up.
+2025-11-08 repository review flagged the outstanding redundant-file audit while the PyESPN harness continues to pass end-to-end
+tests.
