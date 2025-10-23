@@ -1,3 +1,5 @@
+import importlib
+import importlib.util
 import json
 import sys
 from pyespn import PYESPN
@@ -19,37 +21,119 @@ SEASON_TYPE_ALIASES = {
     "play-in": "playin",
 }
 
+SEASON_TYPE_IDS = {
+    "pre": "1",
+    "regular": "2",
+    "post": "3",
+    "playin": "4",
+}
+
+_SCHEDULE_CLASS = None
+_FETCH_ESPN_DATA = None
+_LOOKUP_LEAGUE_API_INFO = None
+_API_VERSION = None
+_DEPENDENCIES_CHECKED = False
+
 
 def normalize_season_type(raw: str) -> str:
     key = raw.lower()
     return SEASON_TYPE_ALIASES.get(key, key)
 
 
+def _hydrate_core_dependencies():
+    global _SCHEDULE_CLASS, _FETCH_ESPN_DATA, _LOOKUP_LEAGUE_API_INFO, _API_VERSION, _DEPENDENCIES_CHECKED
+    if _DEPENDENCIES_CHECKED:
+        return
+    schedule_spec = importlib.util.find_spec("pyespn.classes.schedule")
+    if schedule_spec is not None:
+        schedule_module = importlib.import_module("pyespn.classes.schedule")
+        _SCHEDULE_CLASS = getattr(schedule_module, "Schedule", None)
+    utilities_spec = importlib.util.find_spec("pyespn.utilities")
+    if utilities_spec is not None:
+        utilities_module = importlib.import_module("pyespn.utilities")
+        _FETCH_ESPN_DATA = getattr(utilities_module, "fetch_espn_data", None)
+        _LOOKUP_LEAGUE_API_INFO = getattr(utilities_module, "lookup_league_api_info", None)
+    version_spec = importlib.util.find_spec("pyespn.data.version")
+    if version_spec is not None:
+        version_module = importlib.import_module("pyespn.data.version")
+        _API_VERSION = getattr(version_module, "espn_api_version", None)
+    _DEPENDENCIES_CHECKED = True
+
+
+def _build_schedule_from_core(espn: PYESPN, season_type: str, season: int):
+    _hydrate_core_dependencies()
+    if not all([_SCHEDULE_CLASS, _FETCH_ESPN_DATA, _API_VERSION]):
+        return None
+    season_type_id = SEASON_TYPE_IDS.get(season_type)
+    if not season_type_id:
+        return None
+    api_info = getattr(espn, "api_mapping", None)
+    if not api_info and _LOOKUP_LEAGUE_API_INFO and hasattr(espn, "league_abbv"):
+        try:
+            api_info = _LOOKUP_LEAGUE_API_INFO(league_abbv=espn.league_abbv)
+        except Exception:
+            api_info = None
+    if not api_info:
+        return None
+    base_url = (
+        f"http://sports.core.api.espn.com/{_API_VERSION}/sports/"
+        f"{api_info.get('sport')}/leagues/{api_info.get('league')}/"
+        f"seasons/{season}/types/{season_type_id}/weeks"
+    )
+    try:
+        content = _FETCH_ESPN_DATA(base_url)
+    except Exception:
+        return None
+    page_count = content.get("pageCount") or 0
+    week_refs = []
+    for page in range(1, page_count + 1):
+        page_url = f"{base_url}?page={page}"
+        try:
+            page_content = _FETCH_ESPN_DATA(page_url)
+        except Exception:
+            continue
+        for item in page_content.get("items", []):
+            ref = item.get("$ref")
+            if ref:
+                week_refs.append(ref)
+    if not week_refs:
+        return None
+    try:
+        return _SCHEDULE_CLASS(schedule_list=week_refs, espn_instance=espn)
+    except Exception:
+        return None
+
+
+def load_schedule_for_type(espn: PYESPN, season_type: str, season: int):
+    if hasattr(espn, "load_season_schedule"):
+        if season_type == "pre":
+            espn.load_season_schedule(
+                season=season,
+                load_regular_season=False,
+                load_preseason=True,
+            )
+            return getattr(espn.league, "preseason_schedules", {}).get(season)
+        if season_type == "post":
+            espn.load_season_schedule(
+                season=season,
+                load_regular_season=False,
+                load_postseason=True,
+            )
+            return getattr(espn.league, "postseason_schedules", {}).get(season)
+        if season_type == "playin":
+            espn.load_season_schedule(
+                season=season,
+                load_regular_season=False,
+                load_play_in=True,
+            )
+            return getattr(espn.league, "play_in_schedules", {}).get(season)
+        espn.load_season_schedule(season=season)
+        return getattr(espn.league, "schedules", {}).get(season)
+    return _build_schedule_from_core(espn, season_type, season)
+
+
 def load_schedule(espn: PYESPN, season_type: str, season: int):
-    normalized = normalize_season_type(season_type)
-    if normalized == "pre":
-        espn.load_season_schedule(
-            season=season,
-            load_regular_season=False,
-            load_preseason=True,
-        )
-        return espn.league.preseason_schedules.get(season)
-    if normalized == "post":
-        espn.load_season_schedule(
-            season=season,
-            load_regular_season=False,
-            load_postseason=True,
-        )
-        return espn.league.postseason_schedules.get(season)
-    if normalized == "playin":
-        espn.load_season_schedule(
-            season=season,
-            load_regular_season=False,
-            load_play_in=True,
-        )
-        return espn.league.play_in_schedules.get(season)
-    espn.load_season_schedule(season=season)
-    return espn.league.schedules.get(season)
+    return load_schedule_for_type(espn, season_type, season)
 
 
 def pick_competitor(competitors, side):

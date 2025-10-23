@@ -3,6 +3,20 @@ import sys
 from pyespn import PYESPN
 
 
+def _normalize_sequence(items):
+    normalized = []
+    for item in items:
+        if hasattr(item, "to_dict"):
+            normalized.append(item.to_dict())
+        elif isinstance(item, dict):
+            normalized.append(item)
+        elif hasattr(item, "__dict__"):
+            normalized.append({key: value for key, value in vars(item).items() if not key.startswith("_")})
+        else:
+            normalized.append(item)
+    return normalized
+
+
 def main():
     if len(sys.argv) < 2:
         print("{}")
@@ -15,13 +29,13 @@ def main():
     espn = PYESPN('nfl')
     event = espn.get_game_info(event_id=event_id)
     event.load_play_by_play()
-    payload = event.to_dict(load_play_by_play=True)
-    drives = event.drives or []
-    plays = event.plays or []
+    payload = event.to_dict()
+    drives = getattr(event, "drives", []) or []
+    plays = getattr(event, "plays", []) or []
     if drives:
-        payload["drives"] = [drive.to_dict() for drive in drives]
+        payload["drives"] = _normalize_sequence(drives)
     if plays:
-        payload["plays"] = [play.to_dict() for play in plays]
+        payload["plays"] = _normalize_sequence(plays)
     print(json.dumps(payload, ensure_ascii=False))
 
 
