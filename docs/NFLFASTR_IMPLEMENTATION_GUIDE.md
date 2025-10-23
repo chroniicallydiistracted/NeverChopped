@@ -341,11 +341,18 @@ export interface PlayDataAdapter {
 
 ### Step 1.2: Implement Sleeper Adapter
 
+> **Note:** The legacy `src/utils/playDirection.ts` helper was removed during the 2025 redundancy cleanup. Inline a lightweight heuristic or use orientation data from your provider if you still need left/right hints for plays.
+
 ```typescript
 // src/lib/play-data/adapters/sleeper-adapter.ts
 
 import type { PlayDataAdapter, StandardPlay } from '../types';
-import { inferPlayDirection } from '@/utils/playDirection';
+
+function inferPlayDirection(play: any): 'left' | 'right' | 'unknown' {
+  const side = play?.possession?.direction ?? play?.direction;
+  if (side === 'left' || side === 'right') return side;
+  return 'unknown';
+}
 
 export class SleeperAdapter implements PlayDataAdapter {
   name = 'sleeper';
