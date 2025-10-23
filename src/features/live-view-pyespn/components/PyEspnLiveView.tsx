@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { DEFAULT_UNIFORM_SEASON } from '../../../constants/uniforms';
 import { getFieldImageInfo } from '../../../constants/fieldTeams';
 import { fetchWeeklyUniforms, getHelmetUrls, type WeeklyUniforms } from '../../../lib/uniforms';
@@ -26,10 +26,14 @@ interface ScheduleGame {
 }
 
 interface PyEspnLiveViewProps {
-  season: string | null | undefined;
+  season: number | string | null | undefined;
   seasonType: string | null | undefined;
   week: number | null | undefined;
   schedule: ScheduleGame[];
+  isLoadingSchedule?: boolean;
+  scheduleError?: string | null;
+  onRefreshSchedule?: () => void;
+  autoRefresh?: boolean;
 }
 
 const speedOptions = [
@@ -56,7 +60,16 @@ const formatGameOption = (game: ScheduleGame) => {
   return `${game.away} @ ${game.home} • ${statusLabel} • ${kickoff}`;
 };
 
-const PyEspnLiveView = ({ season, seasonType, week, schedule }: PyEspnLiveViewProps) => {
+const PyEspnLiveView = ({
+  season,
+  seasonType,
+  week,
+  schedule,
+  isLoadingSchedule = false,
+  scheduleError = null,
+  onRefreshSchedule,
+  autoRefresh = true,
+}: PyEspnLiveViewProps) => {
   const [selectedGameId, setSelectedGameId] = useState<string | null>(() => schedule[0]?.game_id ?? null);
   const [playIndex, setPlayIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -69,8 +82,16 @@ const PyEspnLiveView = ({ season, seasonType, week, schedule }: PyEspnLiveViewPr
   );
 
   useEffect(() => {
-    if (schedule.length && !selectedGameId) {
+    if (!schedule.length) {
+      setSelectedGameId(null);
+      setPlayIndex(0);
+      setIsPlaying(false);
+      return;
+    }
+    if (!selectedGameId || !schedule.some(game => game.game_id === selectedGameId)) {
       setSelectedGameId(schedule[0].game_id);
+      setPlayIndex(0);
+      setIsPlaying(false);
     }
   }, [schedule, selectedGameId]);
 
@@ -103,7 +124,7 @@ const PyEspnLiveView = ({ season, seasonType, week, schedule }: PyEspnLiveViewPr
 
   const { data, loading, error, lastUpdated, refresh } = usePyEspnGame({
     gameId: selectedGameId,
-    autoRefresh: true,
+    autoRefresh,
     refreshIntervalMs: 25_000,
   });
 
@@ -220,6 +241,11 @@ const PyEspnLiveView = ({ season, seasonType, week, schedule }: PyEspnLiveViewPr
       <div className="space-y-2">
         <p className="text-xs uppercase tracking-widest text-slate-400">Select Game</p>
         <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+          {isLoadingSchedule && !schedule.length && (
+            <div className="flex items-center gap-2 text-sm text-slate-400">
+              <Loader2 className="w-4 h-4 animate-spin" /> Loading schedule…
+            </div>
+          )}
           {schedule.map(game => {
             const isSelected = game.game_id === selectedGameId;
             return (
@@ -241,10 +267,24 @@ const PyEspnLiveView = ({ season, seasonType, week, schedule }: PyEspnLiveViewPr
               </button>
             );
           })}
-          {!schedule.length && (
+          {!schedule.length && !isLoadingSchedule && (
             <div className="text-sm text-slate-400">No scheduled games available for this week.</div>
           )}
         </div>
+        {scheduleError && (
+          <div className="flex items-center gap-2 text-sm text-red-400">
+            <AlertCircle className="w-4 h-4" />
+            <span>{scheduleError}</span>
+          </div>
+        )}
+        {onRefreshSchedule && (
+          <button
+            onClick={onRefreshSchedule}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs rounded-md border border-slate-700 text-slate-300 hover:bg-slate-800/40"
+          >
+            <RefreshCw className="w-3 h-3" /> Refresh Schedule
+          </button>
+        )}
       </div>
       <div>
         <p className="text-xs uppercase tracking-widest text-slate-400 mb-2">Playback Speed</p>

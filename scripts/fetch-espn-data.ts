@@ -8,6 +8,11 @@ interface EspnPlayByPlayPayload {
   [key: string]: unknown;
 }
 
+interface EspnScheduleResponse {
+  entries: unknown[];
+  meta: Record<string, unknown> | null;
+}
+
 const PYTHON_INTERPRETER = 'python';
 
 const normalizeSeasonType = (value: string): string => {
@@ -56,16 +61,21 @@ export async function fetchEspnSchedule(
   seasonType: string,
   season: number,
   week: number,
-): Promise<unknown[] | null> {
+): Promise<EspnScheduleResponse | null> {
   try {
     const normalizedSeasonType = normalizeSeasonType(seasonType);
     const raw = await runPythonScript('py/espn_schedule.py', [normalizedSeasonType, season, week]);
     const trimmed = raw.trim();
     if (!trimmed) {
-      return [];
+      return { entries: [], meta: null };
     }
     const parsed = JSON.parse(trimmed);
-    return Array.isArray(parsed) ? parsed : [];
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const entries = Array.isArray(parsed.entries) ? parsed.entries : [];
+      const meta = parsed.meta && typeof parsed.meta === 'object' ? (parsed.meta as Record<string, unknown>) : null;
+      return { entries, meta };
+    }
+    return { entries: Array.isArray(parsed) ? parsed : [], meta: null };
   } catch (error) {
     console.error(`Error fetching ESPN schedule for ${seasonType} ${season} week ${week}:`, error);
     return null;
@@ -85,7 +95,7 @@ if (require.main === module) {
     }
     fetchEspnSchedule(seasonType, season, week)
       .then(data => {
-        console.log(JSON.stringify(data ?? [], null, 2));
+        console.log(JSON.stringify(data ?? { entries: [], meta: null }, null, 2));
       })
       .catch(error => {
         console.error('Error:', error);

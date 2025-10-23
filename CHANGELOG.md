@@ -1,5 +1,19 @@
 # Changelog
 
+# 2025-11-10
+- Disabled the on-disk PyESPN schedule cache whenever the fake state harness or
+  explicit cache-disabling flags are present so deterministic tests and local
+  debugging never return stale JSON while production runs still honor the
+  TTL-based cache. 【F:py/espn_schedule.py†L45-L110】
+- Preserved the season-type detection order and limited automatic remapping to
+  "regular" or unknown requests, ensuring preseason and play-in weeks resolve to
+  their correct buckets without overriding explicit selections. 【F:py/espn_schedule.py†L352-L455】
+- Ignored the generated `py/.cache/` directory to keep schedule snapshots
+  written by the Python helper out of the git index. 【F:.gitignore†L41-L42】
+- Re-ran the focused PyESPN Vitest suites (scripts, API server, live schedule
+  UI, and API helpers) with JSON reporters to confirm the cache and
+  season-mapping fixes pass end-to-end. 【7271af†L1-L5】【252745†L1-L22】【4035c5†L1-L8】【2a15dd†L1-L9】【103e18†L1-L7】
+
 # 2025-11-09
 - Restored the ESPN API server bootstrap by requiring Express before building
   the router, preventing the child process from exiting with duplicate or

@@ -3,10 +3,7 @@ import React from 'react';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-let fetchEspnScheduleSpy: vi.SpyInstance<
-  Promise<Array<Record<string, unknown>>>,
-  [string, number, number, { forceRefresh?: boolean } | undefined]
-> | null = null;
+let fetchEspnScheduleSpy: vi.SpyInstance<any, any> | null = null;
 
 let intervalCallback: (() => Promise<void> | void) | null = null;
 let setIntervalSpy: vi.SpyInstance<ReturnType<typeof setInterval>, Parameters<typeof setInterval>> | null = null;
@@ -146,7 +143,32 @@ beforeEach(async () => {
   const apiModule = await import('../../src/lib/api/espn-data');
   fetchEspnScheduleSpy = vi
     .spyOn(apiModule, 'fetchEspnSchedule')
-    .mockResolvedValue(mockSchedule);
+    .mockImplementation(async (seasonType: string, season: number, week: number, opts?: Record<string, unknown>) => {
+      if (opts && typeof opts === 'object' && opts.includeMeta) {
+        return {
+          entries: mockSchedule,
+          meta: {
+            season,
+            requested_season_type: seasonType,
+            resolved_season_type: seasonType,
+            requested_week: week,
+            default_week: week,
+            default_season_type: seasonType,
+            season_types: [
+              {
+                id: seasonType,
+                label: 'Regular Season',
+                weeks: [week],
+                current_week: week,
+              },
+            ],
+            week_to_season_type: { [String(week)]: seasonType },
+            generated_at: new Date().toISOString(),
+          },
+        };
+      }
+      return mockSchedule;
+    });
 
   intervalCallback = null;
   if (setIntervalSpy) {
@@ -189,7 +211,12 @@ describe('SleeperFFHelper PyESPN schedule refresh', () => {
 
     await waitFor(() => {
       expect(fetchEspnScheduleSpy).not.toBeNull();
-      expect(fetchEspnScheduleSpy).toHaveBeenCalledWith('regular', 2025, 7, { forceRefresh: true });
+      expect(fetchEspnScheduleSpy).toHaveBeenCalledWith(
+        'regular',
+        2025,
+        7,
+        expect.objectContaining({ forceRefresh: true }),
+      );
     });
   }, 20000);
 
@@ -218,7 +245,7 @@ describe('SleeperFFHelper PyESPN schedule refresh', () => {
       expect(lastCall?.[0]).toBe('regular');
       expect(lastCall?.[1]).toBe(2025);
       expect(lastCall?.[2]).toBe(7);
-      expect(lastCall?.[3]).toEqual({ forceRefresh: true });
+      expect(lastCall?.[3]).toEqual(expect.objectContaining({ forceRefresh: true }));
     });
   }, 20000);
 });

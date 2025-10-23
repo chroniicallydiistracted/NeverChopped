@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { TrendingUp, Users, Trophy, AlertCircle, RefreshCw, BarChart3, Target, Award, Activity, UserPlus, Zap, AlertTriangle, CheckCircle, XCircle, Brain, Sparkles, Shield, TrendingDown, RadioTower } from 'lucide-react';
 import { getConfig } from '../config';
 import { useAuth } from '../auth/AuthContext';
@@ -16,7 +16,7 @@ import {
 } from '../graphql/queries';
 import PyEspnLiveView from '../features/live-view-pyespn/components/PyEspnLiveView';
 import { fetchEspnSchedule } from '../lib/api/espn-data';
-import type { EspnScheduleStatus } from '../lib/api/espn-data';
+import type { EspnScheduleStatus, EspnScheduleMeta, EspnScheduleEntry } from '../lib/api/espn-data';
 
 type ScheduleStatusCategory = EspnScheduleStatus;
 
@@ -62,6 +62,17 @@ const SleeperFFHelper = () => {
   const [eliminatedTeams, setEliminatedTeams] = useState<number[]>([]); // List of eliminated roster IDs
   const [projections, setProjections] = useState<any>({}); // Weekly player projections
   const [nflSchedule, setNflSchedule] = useState<NflScheduleGame[]>([]); // NFL game schedule with status
+  const [liveSeason, setLiveSeason] = useState<number | null>(null);
+  const [liveWeek, setLiveWeek] = useState<number | null>(null);
+  const [liveSeasonType, setLiveSeasonType] = useState<string>('regular');
+  const [liveSchedule, setLiveSchedule] = useState<NflScheduleGame[]>([]);
+  const [liveScheduleMeta, setLiveScheduleMeta] = useState<EspnScheduleMeta | null>(null);
+  const [liveScheduleLoading, setLiveScheduleLoading] = useState(false);
+  const [liveScheduleError, setLiveScheduleError] = useState<string | null>(null);
+  const liveScheduleCacheRef = useRef(
+    new Map<string, { games: NflScheduleGame[]; meta: EspnScheduleMeta | null }>(),
+  );
+  const [seasonInput, setSeasonInput] = useState<string>('');
   const AUTH_USER_ID = auth.user?.user_id ? String(auth.user.user_id) : null;
   const USERNAME = auth.user?.username || config.username;
   const TEAM_NAME = auth.user?.display_name || config.teamName;
@@ -202,6 +213,65 @@ const SleeperFFHelper = () => {
     }
   };
 
+  const resolveSeasonTypeForWeek = useCallback(
+    (meta: EspnScheduleMeta | null, targetWeek: number | null, fallback: string): string => {
+      if (!targetWeek) {
+        return fallback;
+      }
+      const key = String(targetWeek);
+      if (meta?.week_to_season_type && typeof meta.week_to_season_type[key] === 'string') {
+        return meta.week_to_season_type[key];
+      }
+      const match = meta?.season_types?.find(summary => Array.isArray(summary.weeks) && summary.weeks.includes(targetWeek));
+      if (match?.id) {
+        return match.id;
+      }
+      return fallback;
+    },
+    [],
+  );
+
+  const transformScheduleEntries = useCallback(
+    (entries: EspnScheduleEntry[], fallbackWeek: number): NflScheduleGame[] =>
+      entries
+        .map(entry => {
+          const gameId = entry?.game_id ? String(entry.game_id) : null;
+          if (!gameId) {
+            return null;
+          }
+
+          const homeTeam = entry?.home_team ?? null;
+          const awayTeam = entry?.away_team ?? null;
+          const homeName =
+            homeTeam?.displayName ?? homeTeam?.name ?? homeTeam?.abbreviation ?? 'TBD';
+          const awayName =
+            awayTeam?.displayName ?? awayTeam?.name ?? awayTeam?.abbreviation ?? 'TBD';
+
+          const derivedWeek = Number.isFinite(Number(entry?.week))
+            ? Number(entry?.week)
+            : fallbackWeek;
+          const dateValue = typeof entry?.date === 'string' ? entry.date : null;
+          const status = (entry?.status ?? 'unknown') as ScheduleStatusCategory;
+          const statusLabel = entry?.status_label ?? 'Unknown';
+          const statusRaw = entry?.status_raw ?? null;
+
+          const result: NflScheduleGame = {
+            game_id: gameId,
+            week: derivedWeek,
+            status,
+            statusLabel,
+            statusRaw,
+            date: dateValue,
+            home: homeName,
+            away: awayName,
+          };
+
+          return result;
+        })
+        .filter((value): value is NflScheduleGame => Boolean(value)),
+    [],
+  );
+
   const loadNflScheduleFromEspn = async (
     seasonType: string,
     week: number,
@@ -214,50 +284,7 @@ const SleeperFFHelper = () => {
         forceRefresh: options.forceRefresh,
       });
       if (Array.isArray(schedule) && schedule.length > 0) {
-        const transformedSchedule = schedule
-          .map(game => {
-            const gameId = game?.game_id ? String(game.game_id) : null;
-            if (!gameId) {
-              return null;
-            }
-
-            const homeTeam = game?.home_team ?? null;
-            const awayTeam = game?.away_team ?? null;
-            const homeName =
-              homeTeam?.displayName ?? homeTeam?.name ?? homeTeam?.abbreviation ?? 'TBD';
-            const awayName =
-              awayTeam?.displayName ?? awayTeam?.name ?? awayTeam?.abbreviation ?? 'TBD';
-
-            const status = (game?.status ?? 'unknown') as ScheduleStatusCategory;
-            const statusLabel =
-              typeof game?.status_label === 'string' && game.status_label
-                ? game.status_label
-                : 'Unknown';
-            const statusRaw =
-              typeof game?.status_raw === 'string' && game.status_raw
-                ? game.status_raw
-                : null;
-
-            const derivedWeek = Number.isFinite(Number(game?.week))
-              ? Number(game?.week)
-              : week;
-
-            const dateValue = typeof game?.date === 'string' ? game.date : null;
-
-            const entry: NflScheduleGame = {
-              game_id: gameId,
-              week: derivedWeek,
-              status,
-              statusLabel,
-              statusRaw,
-              date: dateValue,
-              home: homeName,
-              away: awayName,
-            };
-
-            return entry;
-          })
-          .filter((value): value is NflScheduleGame => Boolean(value));
+        const transformedSchedule = transformScheduleEntries(schedule as EspnScheduleEntry[], week);
         setNflSchedule(transformedSchedule);
       } else {
         setNflSchedule([]);
@@ -268,6 +295,160 @@ const SleeperFFHelper = () => {
       setNflSchedule([]);
     }
   };
+
+  const loadLiveSchedule = useCallback(
+    async (
+      season: number,
+      week: number,
+      baseSeasonType: string,
+      options: LoadNflScheduleOptions = {},
+    ) => {
+      if (!Number.isFinite(season) || !Number.isFinite(week)) {
+        setLiveSchedule([]);
+        setLiveScheduleMeta(null);
+        setLiveScheduleLoading(false);
+        return;
+      }
+
+      const cacheKey = `${season}:${week}`;
+      if (options.forceRefresh) {
+        liveScheduleCacheRef.current.delete(cacheKey);
+      }
+
+      setLiveScheduleLoading(true);
+      setLiveScheduleError(null);
+
+      if (!options.forceRefresh) {
+        const cached = liveScheduleCacheRef.current.get(cacheKey);
+        if (cached) {
+          setLiveSchedule(cached.games);
+          setLiveScheduleMeta(cached.meta ?? null);
+          setLiveSeason(season);
+          setLiveWeek(week);
+          setLiveSeasonType(resolveSeasonTypeForWeek(cached.meta ?? null, week, baseSeasonType));
+          setLiveScheduleLoading(false);
+          return;
+        }
+      }
+
+      try {
+        const response = await fetchEspnSchedule(baseSeasonType, season, week, {
+          includeMeta: true,
+          forceRefresh: options.forceRefresh,
+        });
+        const resolvedType = response.meta?.resolved_season_type ?? baseSeasonType;
+        const normalizedWeek = Number.isFinite(Number(response.meta?.requested_week))
+          ? Number(response.meta?.requested_week)
+          : week;
+        const games = transformScheduleEntries(response.entries, normalizedWeek);
+        setLiveSchedule(games);
+        setLiveScheduleMeta(response.meta ?? null);
+        setLiveSeason(season);
+        setLiveWeek(normalizedWeek);
+        setLiveSeasonType(resolvedType);
+        liveScheduleCacheRef.current.set(cacheKey, { games, meta: response.meta ?? null });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to load PyESPN schedule';
+        setLiveScheduleError(message);
+        if (!options.forceRefresh) {
+          setLiveSchedule([]);
+        }
+      } finally {
+        setLiveScheduleLoading(false);
+      }
+    },
+    [resolveSeasonTypeForWeek, transformScheduleEntries],
+  );
+
+  useEffect(() => {
+    setSeasonInput(liveSeason !== null ? String(liveSeason) : '');
+  }, [liveSeason]);
+
+  const liveWeekOptions = useMemo(() => {
+    const weeks = new Set<number>();
+    (liveScheduleMeta?.season_types ?? []).forEach(summary => {
+      (summary.weeks ?? []).forEach(weekNumber => {
+        if (Number.isFinite(weekNumber)) {
+          weeks.add(Number(weekNumber));
+        }
+      });
+    });
+    return Array.from(weeks).sort((a, b) => a - b);
+  }, [liveScheduleMeta]);
+
+  const liveSeasonTypeLabel = useMemo(() => {
+    const match = liveScheduleMeta?.season_types?.find(summary => summary.id === liveSeasonType);
+    if (match?.label) {
+      return match.label;
+    }
+    if (!liveSeasonType) {
+      return 'Regular Season';
+    }
+    const key = liveSeasonType.toLowerCase();
+    if (key === 'pre') return 'Preseason';
+    if (key === 'post') return 'Postseason';
+    if (key === 'playin') return 'Play-In';
+    return 'Regular Season';
+  }, [liveScheduleMeta, liveSeasonType]);
+
+  const liveAutoRefresh = useMemo(() => {
+    if (!liveScheduleMeta) {
+      return true;
+    }
+    const metaSeason = Number.isFinite(Number(liveScheduleMeta.season))
+      ? Number(liveScheduleMeta.season)
+      : null;
+    const defaultWeek = Number.isFinite(Number(liveScheduleMeta.default_week))
+      ? Number(liveScheduleMeta.default_week)
+      : null;
+    const baseDefaultType =
+      liveScheduleMeta.default_season_type ?? liveScheduleMeta.requested_season_type ?? 'regular';
+    const resolvedDefaultType = resolveSeasonTypeForWeek(liveScheduleMeta, defaultWeek, baseDefaultType);
+    return (
+      metaSeason !== null &&
+      liveSeason === metaSeason &&
+      defaultWeek !== null &&
+      liveWeek === defaultWeek &&
+      liveSeasonType === resolvedDefaultType
+    );
+  }, [liveScheduleMeta, liveSeason, liveWeek, liveSeasonType, resolveSeasonTypeForWeek]);
+
+  const handleApplySeason = useCallback(() => {
+    const parsedSeason = Number(seasonInput);
+    if (!Number.isFinite(parsedSeason)) {
+      setLiveScheduleError('Please enter a valid season year.');
+      return;
+    }
+    const nextWeek = liveWeek ?? liveWeekOptions[0] ?? 1;
+    const nextType = resolveSeasonTypeForWeek(liveScheduleMeta, nextWeek, liveSeasonType);
+    loadLiveSchedule(parsedSeason, nextWeek, nextType);
+  }, [seasonInput, liveWeek, liveWeekOptions, liveSeasonType, loadLiveSchedule, liveScheduleMeta, resolveSeasonTypeForWeek]);
+
+  const handleSelectWeek = useCallback(
+    (value: number | string) => {
+      if (value === '') {
+        return;
+      }
+      const targetWeek = Number(value);
+      if (!Number.isFinite(targetWeek) || targetWeek <= 0) {
+        return;
+      }
+      const seasonValue = liveSeason ?? Number(seasonInput);
+      if (!Number.isFinite(seasonValue)) {
+        return;
+      }
+      const nextType = resolveSeasonTypeForWeek(liveScheduleMeta, targetWeek, liveSeasonType);
+      loadLiveSchedule(Number(seasonValue), targetWeek, nextType);
+    },
+    [liveSeason, seasonInput, liveSeasonType, loadLiveSchedule, liveScheduleMeta, resolveSeasonTypeForWeek],
+  );
+
+  const handleRefreshLiveSchedule = useCallback(() => {
+    if (!Number.isFinite(liveSeason) || !Number.isFinite(liveWeek)) {
+      return;
+    }
+    loadLiveSchedule(Number(liveSeason), Number(liveWeek), liveSeasonType, { forceRefresh: true });
+  }, [liveSeason, liveWeek, liveSeasonType, loadLiveSchedule]);
   
   // Fetch all data for the active league
   const fetchAllData = async (
@@ -285,6 +466,7 @@ const SleeperFFHelper = () => {
     try {
       setRefreshing(true);
       setError(null);
+      liveScheduleCacheRef.current.clear();
 
       const [stateData, leagueDetails, rostersResult, usersResult, playersData] = await Promise.all([
         fetchNflStateData(),
@@ -351,14 +533,23 @@ const SleeperFFHelper = () => {
       }
 
       if (stateData?.season && stateData?.season_type && stateData?.week) {
-        await loadNflScheduleFromEspn(
-          String(stateData.season_type),
-          Number(stateData.week),
-          Number(stateData.season),
-          options,
-        );
+        const defaultSeason = Number(stateData.season);
+        const defaultWeek = Number(stateData.week);
+        const defaultSeasonType = String(stateData.season_type);
+        await loadNflScheduleFromEspn(defaultSeasonType, defaultWeek, defaultSeason, options);
+        setLiveSeason(defaultSeason);
+        setLiveWeek(defaultWeek);
+        setLiveSeasonType(defaultSeasonType);
+        await loadLiveSchedule(defaultSeason, defaultWeek, defaultSeasonType, options);
       } else {
         setNflSchedule([]);
+        setLiveSchedule([]);
+        setLiveScheduleMeta(null);
+        setLiveSeason(null);
+        setLiveWeek(null);
+        setLiveSeasonType('regular');
+        setLiveScheduleError(null);
+        setLiveScheduleLoading(false);
       }
 
       const activeResult = await calculateActiveTeams(leagueIdToLoad, stateData, rostersDataLocal);
@@ -1756,12 +1947,95 @@ const SleeperFFHelper = () => {
       <div className="max-w-7xl mx-auto px-4 py-6">
 
         {activeTab === 'livegame' && (
-          <PyEspnLiveView
-            season={nflState?.season}
-            seasonType={nflState?.season_type || nflState?.seasonType}
-            week={nflState?.week}
-            schedule={Array.isArray(nflSchedule) ? nflSchedule : []}
-          />
+          <div className="space-y-6">
+            <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 space-y-4">
+              <div className="grid gap-4 md:grid-cols-4">
+                <div>
+                  <label className="text-xs uppercase tracking-widest text-slate-400 block mb-2">
+                    Season
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      className="flex-1 rounded-lg bg-black/40 border border-slate-700 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      value={seasonInput}
+                      onChange={event => setSeasonInput(event.target.value)}
+                      placeholder="2025"
+                    />
+                    <button
+                      onClick={handleApplySeason}
+                      className="px-3 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-widest text-slate-400 block mb-2">
+                    Week
+                  </label>
+                  <select
+                    className="w-full rounded-lg bg-black/40 border border-slate-700 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    value={liveWeek ?? ''}
+                    onChange={event => handleSelectWeek(event.target.value)}
+                    disabled={!liveWeekOptions.length || liveScheduleLoading}
+                  >
+                    <option value="" disabled>
+                      {liveWeekOptions.length ? 'Select week' : 'No weeks'}
+                    </option>
+                    {liveWeekOptions.map(weekValue => (
+                      <option key={weekValue} value={weekValue}>
+                        Week {weekValue}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs uppercase tracking-widest text-slate-400 block mb-2">
+                    Season Type
+                  </label>
+                  <div className="rounded-lg bg-black/40 border border-slate-700 px-3 py-2 text-sm text-slate-200">
+                    {liveSeasonTypeLabel}
+                  </div>
+                </div>
+                <div className="flex items-end">
+                  <button
+                    onClick={handleRefreshLiveSchedule}
+                    disabled={
+                      liveScheduleLoading ||
+                      liveSeason === null ||
+                      liveWeek === null
+                    }
+                    className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
+                      liveScheduleLoading
+                        ? 'border-slate-700 text-slate-500'
+                        : 'border-purple-500/70 text-purple-200 hover:bg-purple-500/10'
+                    }`}
+                  >
+                    <RefreshCw className={`w-4 h-4 ${liveScheduleLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </button>
+                </div>
+              </div>
+              <div className="text-xs text-slate-400">
+                {liveSeason ? `Season ${liveSeason}` : 'Season TBD'} • {liveSeasonTypeLabel} •{' '}
+                {liveWeek ? `Week ${liveWeek}` : 'Week TBD'}
+              </div>
+              {liveScheduleError && (
+                <div className="text-sm text-red-400">{liveScheduleError}</div>
+              )}
+            </div>
+            <PyEspnLiveView
+              season={liveSeason}
+              seasonType={liveSeasonTypeLabel}
+              week={liveWeek}
+              schedule={liveSchedule}
+              isLoadingSchedule={liveScheduleLoading}
+              scheduleError={liveScheduleError}
+              onRefreshSchedule={handleRefreshLiveSchedule}
+              autoRefresh={liveAutoRefresh}
+            />
+          </div>
         )}
         
         {/* Dashboard Tab */}
