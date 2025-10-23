@@ -14,5 +14,5 @@
 All previously tracked migration tasks remain complete; the 2025-11-05 audit confirmed the above follow-ups are the only
 remaining gaps.
 
-2025-11-08 repository review flagged the outstanding redundant-file audit while the PyESPN harness continues to pass end-to-end
-tests.
+2025-11-09 validation reran the PyESPN script, server, and full-stack Vitest suites after repairing the adapters. The redundant-
+file audit still needs to cover the entire repository tree so we can prune any deprecated assets.
