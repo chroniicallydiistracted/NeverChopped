@@ -1,5 +1,22 @@
 # Changelog
 
+# 2025-11-09
+- Restored the ESPN API server bootstrap by requiring Express before building
+  the router, preventing the child process from exiting with duplicate or
+  missing identifier errors during PyESPN end-to-end runs.
+  【F:espn-api-server.cjs†L1-L104】
+- Added the missing standard-library imports to the schedule and play-by-play
+  Python entrypoints so the PyESPN adapters can resolve `json`, `inspect`, and
+  `importlib` helpers when spawned by the web stack.
+  【F:py/espn_schedule.py†L1-L200】【F:py/espn_pbp.py†L1-L40】
+- Re-ran the focused PyESPN Vitest suites covering the Python scripts, Express
+  server, and full-stack integration to confirm the repaired adapters execute
+  cleanly under the stubbed environment.
+  【efa398†L1-L4】【7c58bd†L1-L4】【0f4daf†L1-L3】
+- Outstanding follow-ups: complete the repository-wide redundancy audit and
+  prune any deprecated files surfaced during that review.
+  【F:OUTSTANDING_TASKS.md†L1-L80】
+
 # 2025-11-08
 - Modernized the PyESPN schedule script to prefer the documented
   `Schedule(espn_instance=..., season=..., schedule_type=...)` constructor with
