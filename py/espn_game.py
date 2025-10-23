@@ -14,7 +14,10 @@ def main():
         return
     espn = PYESPN('nfl')
     event = espn.get_game_info(event_id=event_id)
-    payload = event.to_dict()
+    try:
+        payload = event.to_dict(load_play_by_play=False)
+    except TypeError:
+        payload = event.to_dict()
     print(json.dumps(payload, ensure_ascii=False))
 
 

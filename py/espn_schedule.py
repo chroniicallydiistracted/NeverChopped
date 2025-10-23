@@ -1,5 +1,6 @@
 import importlib
 import importlib.util
+import inspect
 import json
 import sys
 from pyespn import PYESPN
@@ -44,20 +45,60 @@ def _hydrate_core_dependencies():
     global _SCHEDULE_CLASS, _FETCH_ESPN_DATA, _LOOKUP_LEAGUE_API_INFO, _API_VERSION, _DEPENDENCIES_CHECKED
     if _DEPENDENCIES_CHECKED:
         return
-    schedule_spec = importlib.util.find_spec("pyespn.classes.schedule")
+    try:
+        schedule_spec = importlib.util.find_spec("pyespn.classes.schedule")
+    except ModuleNotFoundError:
+        schedule_spec = None
     if schedule_spec is not None:
         schedule_module = importlib.import_module("pyespn.classes.schedule")
         _SCHEDULE_CLASS = getattr(schedule_module, "Schedule", None)
-    utilities_spec = importlib.util.find_spec("pyespn.utilities")
+    try:
+        utilities_spec = importlib.util.find_spec("pyespn.utilities")
+    except ModuleNotFoundError:
+        utilities_spec = None
     if utilities_spec is not None:
         utilities_module = importlib.import_module("pyespn.utilities")
         _FETCH_ESPN_DATA = getattr(utilities_module, "fetch_espn_data", None)
         _LOOKUP_LEAGUE_API_INFO = getattr(utilities_module, "lookup_league_api_info", None)
-    version_spec = importlib.util.find_spec("pyespn.data.version")
+    try:
+        version_spec = importlib.util.find_spec("pyespn.data.version")
+    except ModuleNotFoundError:
+        version_spec = None
     if version_spec is not None:
         version_module = importlib.import_module("pyespn.data.version")
         _API_VERSION = getattr(version_module, "espn_api_version", None)
     _DEPENDENCIES_CHECKED = True
+
+
+def _instantiate_modern_schedule(espn: PYESPN, season_type: str, season: int):
+    _hydrate_core_dependencies()
+    schedule_cls = _SCHEDULE_CLASS
+    if schedule_cls is None:
+        return None
+    try:
+        signature = inspect.signature(schedule_cls)
+    except (TypeError, ValueError):
+        signature = None
+    if not signature:
+        return None
+    parameters = signature.parameters
+    required = {"espn_instance", "season", "schedule_type"}
+    if not required.issubset(parameters.keys()):
+        return None
+    kwargs = {
+        "espn_instance": espn,
+        "season": season,
+        "schedule_type": season_type,
+    }
+    optional_flags = {"load_current_week_only", "load_odds", "load_plays"}
+    for key in optional_flags.intersection(parameters.keys()):
+        kwargs[key] = False
+    try:
+        return schedule_cls(**kwargs)
+    except TypeError:
+        return None
+    except Exception:
+        return None
 
 
 def _build_schedule_from_core(espn: PYESPN, season_type: str, season: int):
@@ -105,6 +146,9 @@ def _build_schedule_from_core(espn: PYESPN, season_type: str, season: int):
 
 
 def load_schedule_for_type(espn: PYESPN, season_type: str, season: int):
+    modern_schedule = _instantiate_modern_schedule(espn, season_type, season)
+    if modern_schedule is not None:
+        return modern_schedule
     if hasattr(espn, "load_season_schedule"):
         if season_type == "pre":
             espn.load_season_schedule(
@@ -179,13 +223,16 @@ def main():
         return
 
     try:
-        events = schedule.get_events(week)
+        events = schedule.get_events(week_num=week)
     except Exception:
         events = []
 
     payload = []
     for event in events:
-        event_dict = event.to_dict()
+        try:
+            event_dict = event.to_dict(load_play_by_play=False)
+        except TypeError:
+            event_dict = event.to_dict()
         competitions = event_dict.get("competitions") or []
         competition = competitions[0] if competitions else {}
         competitors = competition.get("competitors") or []

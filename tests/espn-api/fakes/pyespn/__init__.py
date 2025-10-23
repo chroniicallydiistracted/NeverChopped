@@ -162,6 +162,28 @@ _DEFAULT_STATE: Dict[str, Any] = {
     },
 }
 
+_SEASON_TYPE_ALIASES: Dict[str, str] = {
+    "preseason": "pre",
+    "pre-season": "pre",
+    "pre": "pre",
+    "regular": "regular",
+    "regularseason": "regular",
+    "regular_season": "regular",
+    "post": "post",
+    "postseason": "post",
+    "post-season": "post",
+    "playoff": "post",
+    "playoffs": "post",
+    "playin": "playin",
+    "play_in": "playin",
+    "play-in": "playin",
+}
+
+
+def _normalize_season_type(value: str) -> str:
+    key = value.lower()
+    return _SEASON_TYPE_ALIASES.get(key, key)
+
 
 def _deep_copy(value: Any) -> Any:
     return json.loads(json.dumps(value))
@@ -279,23 +301,67 @@ class _FakePlayer:
         return _deep_copy(self.payload)
 
 
-class _FakeSchedule:
-    def __init__(self, season_type: str):
-        self._season_type = season_type
-
-    def get_events(self, week_num: int) -> List[_FakeEvent]:
+class Schedule:
+    def __init__(
+        self,
+        espn_instance: "PYESPN",
+        season: int,
+        schedule_type: str,
+        load_current_week_only: bool = False,
+        load_odds: bool = False,
+        load_plays: bool = False,
+    ) -> None:
+        self.espn_instance = espn_instance
+        self.season = int(season)
+        self.schedule_type = _normalize_season_type(str(schedule_type))
+        self.load_current_week_only = load_current_week_only
+        self.load_odds = load_odds
+        self.load_plays = load_plays
+        self._week_payloads: Dict[str, List[Dict[str, Any]]] = {}
         state = _load_state()
-        season_bucket = state.get("events", {}).get(self._season_type, {})
-        events = season_bucket.get(str(week_num), [])
-        return [_FakeEvent(event) for event in events]
+        season_bucket = state.get("events", {}).get(self.schedule_type, {})
+        if isinstance(season_bucket, dict):
+            for week, entries in season_bucket.items():
+                if isinstance(entries, list):
+                    self._week_payloads[str(week)] = [_deep_copy(entry) for entry in entries]
+        self.weeks = []
+        for key, payloads in self._week_payloads.items():
+            try:
+                week_number = int(key)
+            except ValueError:
+                week_number = key
+            self.weeks.append(
+                type(
+                    "Week",
+                    (),
+                    {
+                        "week_number": week_number,
+                        "events": [_FakeEvent(payload) for payload in payloads],
+                    },
+                )()
+            )
+        self.current_week = self.weeks[0] if self.weeks else None
+
+    def get_events(self, week_num: int | str, load_play_by_play: bool = False) -> List[_FakeEvent]:
+        payloads = self._week_payloads.get(str(week_num))
+        if not payloads:
+            raise ValueError(f"No events found for week number {week_num}")
+        return [_FakeEvent(payload) for payload in payloads]
+
+    def to_dict(self, load_play_by_play: bool = False) -> List[Dict[str, Any]]:
+        return [
+            _FakeEvent(payload).to_dict(load_play_by_play=load_play_by_play)
+            for payloads in self._week_payloads.values()
+            for payload in payloads
+        ]
 
 
 class _FakeLeague:
     def __init__(self) -> None:
-        self.schedules: Dict[int, _FakeSchedule] = {}
-        self.preseason_schedules: Dict[int, _FakeSchedule] = {}
-        self.postseason_schedules: Dict[int, _FakeSchedule] = {}
-        self.play_in_schedules: Dict[int, _FakeSchedule] = {}
+        self.schedules: Dict[int, Schedule] = {}
+        self.preseason_schedules: Dict[int, Schedule] = {}
+        self.postseason_schedules: Dict[int, Schedule] = {}
+        self.play_in_schedules: Dict[int, Schedule] = {}
 
 
 class PYESPN:
@@ -314,13 +380,29 @@ class PYESPN:
         load_play_in: bool = False,
     ) -> None:
         if load_regular_season:
-            self.league.schedules[season] = _FakeSchedule("regular")
+            self.league.schedules[season] = Schedule(
+                espn_instance=self,
+                season=season,
+                schedule_type="regular",
+            )
         if load_preseason:
-            self.league.preseason_schedules[season] = _FakeSchedule("pre")
+            self.league.preseason_schedules[season] = Schedule(
+                espn_instance=self,
+                season=season,
+                schedule_type="pre",
+            )
         if load_postseason:
-            self.league.postseason_schedules[season] = _FakeSchedule("post")
+            self.league.postseason_schedules[season] = Schedule(
+                espn_instance=self,
+                season=season,
+                schedule_type="post",
+            )
         if load_play_in:
-            self.league.play_in_schedules[season] = _FakeSchedule("playin")
+            self.league.play_in_schedules[season] = Schedule(
+                espn_instance=self,
+                season=season,
+                schedule_type="playin",
+            )
 
     def get_game_info(self, event_id: int | str) -> _FakeEvent:
         event = _find_event(event_id)
@@ -335,4 +417,4 @@ class PYESPN:
         return _FakePlayer(data)
 
 
-__all__ = ["PYESPN"]
+__all__ = ["PYESPN", "Schedule"]

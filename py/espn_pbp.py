@@ -29,7 +29,10 @@ def main():
     espn = PYESPN('nfl')
     event = espn.get_game_info(event_id=event_id)
     event.load_play_by_play()
-    payload = event.to_dict()
+    try:
+        payload = event.to_dict(load_play_by_play=True)
+    except TypeError:
+        payload = event.to_dict()
     drives = getattr(event, "drives", []) or []
     plays = getattr(event, "plays", []) or []
     if drives:

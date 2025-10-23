@@ -1,5 +1,21 @@
 # Changelog
 
+# 2025-11-08
+- Modernized the PyESPN schedule script to prefer the documented
+  `Schedule(espn_instance=..., season=..., schedule_type=...)` constructor with
+  reflection-based fallbacks so both current and legacy library surfaces keep
+  emitting normalized week payloads without import errors when auxiliary
+  modules are absent. 【F:py/espn_schedule.py†L1-L176】
+- Updated the game and play-by-play entrypoints to request explicit
+  `load_play_by_play` payloads while gracefully handling older PyESPN releases
+  that still expect positional arguments. 【F:py/espn_game.py†L1-L21】【F:py/espn_pbp.py†L1-L42】
+- Expanded the Vitest PyESPN stub with a concrete `Schedule` implementation and
+  package exports so the tests exercise the modern constructor, while the new
+  `pyespn.classes.schedule` shim keeps Python imports intact. 【F:tests/espn-api/fakes/pyespn/__init__.py†L1-L400】【F:tests/espn-api/fakes/pyespn/classes/__init__.py†L1-L3】【F:tests/espn-api/fakes/pyespn/classes/schedule.py†L1-L3】
+- Outstanding follow-ups: perform a comprehensive repository audit for
+  redundant files to honor the migration checklist once bandwidth allows.
+  【F:OUTSTANDING_TASKS.md†L15-L18】
+
 # 2025-11-07
 - Reworked the PyESPN schedule loader to auto-detect the available API surface,
   falling back to the core schedule fetcher when `PYESPN.load_season_schedule`
