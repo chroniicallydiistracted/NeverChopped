@@ -163,8 +163,18 @@ detect_python() {
     fi
 }
 
+# ...existing code...
 ensure_pyespn() {
     detect_python
+
+    # When inside a virtualenv, pip --user is invalid because the virtualenv hides user site-packages.
+    # Choose whether to pass --user based on presence of VIRTUAL_ENV.
+    local PIP_USER_FLAG=""
+    if [[ -n "${VIRTUAL_ENV:-}" ]]; then
+        PIP_USER_FLAG=""
+    else
+        PIP_USER_FLAG="--user"
+    fi
 
     local requirements_file=""
     local candidates=("requirements.txt" "py/requirements.txt" "py scripts/requirements.txt")
@@ -186,7 +196,8 @@ ensure_pyespn() {
 
         if [[ "$checksum" != "$installed_checksum" ]]; then
             echo -e "${YELLOW}⚙️  Installing Python dependencies from ${requirements_file}...${NC}"
-            "$PYTHON_BIN" -m pip install --user --upgrade --requirement "$requirements_file"
+            # Use PIP_USER_FLAG which is empty inside virtualenv and "--user" otherwise.
+            "$PYTHON_BIN" -m pip install ${PIP_USER_FLAG} --upgrade --requirement "$requirements_file"
             echo "$checksum" > "$marker"
         else
             echo -e "${GREEN}✅ Python dependencies are current (${requirements_file}).${NC}"
@@ -195,11 +206,13 @@ ensure_pyespn() {
         echo -e "${YELLOW}⚠️  No requirements file found. Falling back to pyespn presence check.${NC}"
     fi
 
+    # Ensure pyespn is installed; again respect virtualenv vs --user
     if ! "$PYTHON_BIN" -c "import pyespn" >/dev/null 2>&1; then
         echo -e "${YELLOW}⚠️  pyespn not found for ${PYTHON_BIN}. Installing...${NC}"
-        "$PYTHON_BIN" -m pip install --user pyespn
+        "$PYTHON_BIN" -m pip install ${PIP_USER_FLAG} pyespn
     fi
 }
+# ...existing code...
 
 start_frontend_background() {
     echo -e "${YELLOW}🚀 Starting dev server (background)...${NC}"
