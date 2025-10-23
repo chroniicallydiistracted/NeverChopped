@@ -16,3 +16,7 @@ remaining gaps.
 
 2025-11-09 validation reran the PyESPN script, server, and full-stack Vitest suites after repairing the adapters. The redundant-
 file audit still needs to cover the entire repository tree so we can prune any deprecated assets.
+
+2025-11-10 audit verified the refreshed PyESPN schedule caching and season-type resolution changes across Python, Node, and
+React layers with the targeted Vitest suites. No new issues were uncovered; the SleeperFFHelper error-handling coverage
+remains the sole outstanding item.

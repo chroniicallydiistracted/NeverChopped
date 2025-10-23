@@ -59,6 +59,30 @@ export interface EspnPlayerPayload {
   raw: Record<string, unknown>;
 }
 
+export interface EspnSeasonTypeSummary {
+  id: string;
+  label: string;
+  weeks: number[];
+  current_week: number | null;
+}
+
+export interface EspnScheduleMeta {
+  season: number | null;
+  requested_season_type: string | null;
+  resolved_season_type: string | null;
+  requested_week: number | null;
+  default_week: number | null;
+  default_season_type: string | null;
+  season_types: EspnSeasonTypeSummary[];
+  week_to_season_type: Record<string, string>;
+  generated_at: string | null;
+}
+
+export interface EspnScheduleResponse {
+  entries: EspnScheduleEntry[];
+  meta: EspnScheduleMeta | null;
+}
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
@@ -359,7 +383,28 @@ const parsePlayerPayload = (value: unknown): EspnPlayerPayload | null => {
 
 interface FetchOptions {
   forceRefresh?: boolean;
+  includeMeta?: boolean;
+  useMemo?: boolean;
 }
+
+const SCHEDULE_MEMO = new Map<string, { data: EspnScheduleResponse; ts: number }>();
+const SCHEDULE_MEMO_TTL_MS = 60_000;
+
+const getScheduleMemo = (key: string): EspnScheduleResponse | null => {
+  const entry = SCHEDULE_MEMO.get(key);
+  if (!entry) {
+    return null;
+  }
+  if (Date.now() - entry.ts > SCHEDULE_MEMO_TTL_MS) {
+    SCHEDULE_MEMO.delete(key);
+    return null;
+  }
+  return entry.data;
+};
+
+const setScheduleMemo = (key: string, value: EspnScheduleResponse) => {
+  SCHEDULE_MEMO.set(key, { data: value, ts: Date.now() });
+};
 
 const parseTeam = (value: unknown): EspnScheduleTeam | null => {
   if (!isRecord(value)) {
@@ -458,20 +503,98 @@ export async function fetchEspnSchedule(
   seasonType: string,
   season: number,
   week: number,
+  options: FetchOptions & { includeMeta: true },
+): Promise<EspnScheduleResponse>;
+
+export async function fetchEspnSchedule(
+  seasonType: string,
+  season: number,
+  week: number,
+  options?: FetchOptions,
+): Promise<EspnScheduleEntry[]>;
+
+export async function fetchEspnSchedule(
+  seasonType: string,
+  season: number,
+  week: number,
   options: FetchOptions = {},
-): Promise<EspnScheduleEntry[]> {
+): Promise<EspnScheduleEntry[] | EspnScheduleResponse> {
   const normalizedSeasonType = normalizeSeasonType(seasonType);
   const encodedSeasonType = encodeURIComponent(normalizedSeasonType);
   const encodedSeason = encodeURIComponent(String(season));
   const encodedWeek = encodeURIComponent(String(week));
-  const suffix = options.forceRefresh ? '?force=refresh' : '';
-  const data = await fetchJson(`/api/espn/schedule/${encodedSeasonType}/${encodedSeason}/${encodedWeek}${suffix}`);
-  if (!Array.isArray(data)) {
-    return [];
+  const query = options.forceRefresh ? '?force=refresh' : '';
+  const memoKey = `${normalizedSeasonType}:${season}:${week}`;
+  const useMemo = options.useMemo !== false;
+  if (useMemo && !options.forceRefresh) {
+    const memoized = getScheduleMemo(memoKey);
+    if (memoized) {
+      return options.includeMeta ? memoized : memoized.entries;
+    }
   }
-  return data
-    .map(parseScheduleEntry)
-    .filter((entry): entry is EspnScheduleEntry => entry !== null);
+  const data = await fetchJson(`/api/espn/schedule/${encodedSeasonType}/${encodedSeason}/${encodedWeek}${query}`);
+  const parsed: EspnScheduleResponse = (() => {
+    if (isRecord(data) && !Array.isArray(data)) {
+      const entries = Array.isArray(data.entries) ? data.entries : [];
+      const metaRecord = isRecord(data.meta) ? (data.meta as Record<string, unknown>) : null;
+      const entriesParsed = entries
+        .map(parseScheduleEntry)
+        .filter((entry): entry is EspnScheduleEntry => entry !== null);
+      const seasonTypes = Array.isArray(metaRecord?.season_types)
+        ? (metaRecord?.season_types as unknown[]).reduce<EspnSeasonTypeSummary[]>((acc, value) => {
+            if (!isRecord(value)) {
+              return acc;
+            }
+            const id = typeof value.id === 'string' ? value.id : null;
+            if (!id) {
+              return acc;
+            }
+            const label = typeof value.label === 'string' ? value.label : id;
+            const weeksRaw = Array.isArray(value.weeks) ? value.weeks : [];
+            const weeks = weeksRaw
+              .map(item => Number(item))
+              .filter(num => Number.isFinite(num))
+              .map(num => Number(num));
+            const currentWeek = Number.isFinite(Number(value.current_week))
+              ? Number(value.current_week)
+              : null;
+            acc.push({ id, label, weeks, current_week: currentWeek });
+            return acc;
+          }, [])
+        : [];
+      const weekToType = isRecord(metaRecord?.week_to_season_type)
+        ? (metaRecord?.week_to_season_type as Record<string, string>)
+        : {};
+      const meta: EspnScheduleMeta | null = metaRecord
+        ? {
+            season: Number.isFinite(Number(metaRecord.season)) ? Number(metaRecord.season) : null,
+            requested_season_type:
+              typeof metaRecord.requested_season_type === 'string' ? metaRecord.requested_season_type : null,
+            resolved_season_type:
+              typeof metaRecord.resolved_season_type === 'string' ? metaRecord.resolved_season_type : null,
+            requested_week: Number.isFinite(Number(metaRecord.requested_week))
+              ? Number(metaRecord.requested_week)
+              : null,
+            default_week: Number.isFinite(Number(metaRecord.default_week)) ? Number(metaRecord.default_week) : null,
+            default_season_type:
+              typeof metaRecord.default_season_type === 'string' ? metaRecord.default_season_type : null,
+            season_types: seasonTypes,
+            week_to_season_type: weekToType,
+            generated_at: typeof metaRecord.generated_at === 'string' ? metaRecord.generated_at : null,
+          }
+        : null;
+      return { entries: entriesParsed, meta };
+    }
+    const entries = Array.isArray(data) ? data : [];
+    const parsedEntries = entries
+      .map(parseScheduleEntry)
+      .filter((entry): entry is EspnScheduleEntry => entry !== null);
+    return { entries: parsedEntries, meta: null };
+  })();
+  if (useMemo) {
+    setScheduleMemo(memoKey, parsed);
+  }
+  return options.includeMeta ? parsed : parsed.entries;
 }
 
 export async function fetchEspnEvent(

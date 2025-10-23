@@ -2,7 +2,13 @@ import importlib
 import importlib.util
 import inspect
 import json
+import os
 import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Tuple
+
 from pyespn import PYESPN
 
 SEASON_TYPE_ALIASES = {
@@ -29,11 +35,81 @@ SEASON_TYPE_IDS = {
     "playin": "4",
 }
 
+SEASON_TYPE_LABELS = {
+    "pre": "Preseason",
+    "regular": "Regular Season",
+    "post": "Postseason",
+    "playin": "Play-In",
+}
+
+CACHE_DIR = Path(os.environ.get("PYESPN_CACHE_DIR", Path(__file__).resolve().parent / ".cache"))
+CACHE_FILE = CACHE_DIR / "espn_schedule_cache.json"
+CACHE_TTL_SECONDS = int(os.environ.get("PYESPN_SCHEDULE_CACHE_TTL", "300"))
+_CACHE_DISABLED_ENV = os.environ.get("PYESPN_SCHEDULE_CACHE_DISABLED", "")
+_CACHE_DISABLED = CACHE_TTL_SECONDS <= 0 or _CACHE_DISABLED_ENV.lower() in {"1", "true", "yes", "on"}
+if os.environ.get("PYESPN_FAKE_STATE_PATH"):
+    _CACHE_DISABLED = True
+CACHE_ENABLED = not _CACHE_DISABLED
+if not CACHE_ENABLED:
+    CACHE_TTL_SECONDS = 0
+
+_CACHE_STATE: Optional[Dict[str, Any]] = None
+
 _SCHEDULE_CLASS = None
 _FETCH_ESPN_DATA = None
 _LOOKUP_LEAGUE_API_INFO = None
 _API_VERSION = None
 _DEPENDENCIES_CHECKED = False
+
+
+def _ensure_cache_loaded() -> Dict[str, Any]:
+    global _CACHE_STATE
+    if not CACHE_ENABLED:
+        _CACHE_STATE = {}
+        return _CACHE_STATE
+    if _CACHE_STATE is not None:
+        return _CACHE_STATE
+    try:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+    try:
+        with CACHE_FILE.open("r", encoding="utf-8") as handle:
+            _CACHE_STATE = json.load(handle)
+    except Exception:
+        _CACHE_STATE = {}
+    return _CACHE_STATE
+
+
+def _read_cache(key: str) -> Optional[Dict[str, Any]]:
+    if not CACHE_ENABLED:
+        return None
+    cache = _ensure_cache_loaded()
+    entry = cache.get(key)
+    if not isinstance(entry, dict):
+        return None
+    ts = entry.get("ts")
+    if not isinstance(ts, (int, float)):
+        return None
+    if CACHE_TTL_SECONDS > 0 and time.time() - ts > CACHE_TTL_SECONDS:
+        return None
+    data = entry.get("data")
+    if not isinstance(data, dict):
+        return None
+    return data
+
+
+def _write_cache(key: str, value: Dict[str, Any]) -> None:
+    if not CACHE_ENABLED:
+        return
+    cache = _ensure_cache_loaded()
+    cache[key] = {"data": value, "ts": time.time()}
+    try:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        with CACHE_FILE.open("w", encoding="utf-8") as handle:
+            json.dump(cache, handle, ensure_ascii=False)
+    except Exception:
+        pass
 
 
 def normalize_season_type(raw: str) -> str:
@@ -180,14 +256,48 @@ def load_schedule(espn: PYESPN, season_type: str, season: int):
     return load_schedule_for_type(espn, season_type, season)
 
 
-def pick_competitor(competitors, side):
+def ensure_plain_team(value: Any) -> Dict[str, Any]:
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return value
+    if hasattr(value, "to_dict") and callable(getattr(value, "to_dict")):
+        try:
+            data = value.to_dict()
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            return {}
+    return {}
+
+
+def resolve_competitor_team(event: Any, event_dict: Dict[str, Any], competitor: Dict[str, Any], attr_name: str) -> Dict[str, Any]:
+    team_value = competitor.get("team") if isinstance(competitor, dict) else None
+    if isinstance(team_value, dict) and "$ref" not in team_value:
+        return team_value
+    event_attr = ensure_plain_team(getattr(event, attr_name, None))
+    if event_attr:
+        return event_attr
+    if isinstance(team_value, dict):
+        ref = team_value.get("$ref")
+        teams_payload = event_dict.get("teams")
+        if isinstance(ref, str) and isinstance(teams_payload, dict):
+            deref = teams_payload.get(ref)
+            if isinstance(deref, dict):
+                return deref
+    if isinstance(team_value, dict):
+        return team_value
+    return {}
+
+
+def pick_competitor(competitors: Iterable[Dict[str, Any]], side: str) -> Dict[str, Any]:
     for competitor in competitors:
         if competitor.get("homeAway") == side:
             return competitor
     return {}
 
 
-def extract_status(status):
+def extract_status(status: Any) -> Optional[str]:
     if not isinstance(status, dict):
         return status if isinstance(status, str) else None
     status_type = status.get("type")
@@ -198,36 +308,87 @@ def extract_status(status):
         description = status_type.get("description")
         if description:
             return description
+        detail = status_type.get("detail")
+        if detail:
+            return detail
     if isinstance(status_type, str):
         return status_type
-    return status.get("type")
+    return status.get("type") if isinstance(status.get("type"), str) else None
 
 
-def main():
-    if len(sys.argv) < 4:
-        print("[]")
-        return
-    season_type = sys.argv[1]
-    normalized_type = normalize_season_type(season_type)
+def gather_week_numbers(schedule: Any) -> List[int]:
+    weeks: List[int] = []
+    week_iterable = getattr(schedule, "weeks", None)
+    if not week_iterable:
+        return weeks
+    for week_obj in week_iterable:
+        number = getattr(week_obj, "week_number", None)
+        if number is None:
+            continue
+        try:
+            value = int(str(number))
+        except (TypeError, ValueError):
+            continue
+        if value not in weeks:
+            weeks.append(value)
+    weeks.sort()
+    return weeks
+
+
+def detect_current_week(schedule: Any) -> Optional[int]:
+    current = getattr(schedule, "current_week", None)
+    if current is None:
+        return None
+    number = getattr(current, "week_number", None)
+    if number is None:
+        return None
     try:
-        season = int(sys.argv[2])
-        week = int(sys.argv[3])
-    except ValueError:
-        print("[]")
-        return
+        return int(str(number))
+    except (TypeError, ValueError):
+        return None
 
-    espn = PYESPN('nfl')
-    schedule = load_schedule(espn, normalized_type, season)
-    if schedule is None:
-        print("[]")
-        return
 
-    try:
-        events = schedule.get_events(week_num=week)
-    except Exception:
-        events = []
+def build_season_summary(espn: PYESPN, season: int) -> Tuple[Dict[str, Any], Dict[str, str], Dict[str, Any], Optional[int], Optional[str]]:
+    summaries: Dict[str, Any] = {}
+    schedules: Dict[str, Any] = {}
+    for season_type in ("pre", "regular", "post", "playin"):
+        schedule = load_schedule_for_type(espn, season_type, season)
+        schedules[season_type] = schedule
+        weeks = gather_week_numbers(schedule)
+        current_week = detect_current_week(schedule)
+        summaries[season_type] = {
+            "id": season_type,
+            "label": SEASON_TYPE_LABELS.get(season_type, season_type.title()),
+            "weeks": weeks,
+            "current_week": current_week,
+        }
+    week_to_type: Dict[str, str] = {}
+    for season_type, info in summaries.items():
+        for week_number in info.get("weeks", []):
+            key = str(week_number)
+            if key not in week_to_type:
+                week_to_type[key] = season_type
+    default_week = None
+    default_type = None
+    regular = summaries.get("regular", {})
+    if regular.get("current_week"):
+        default_week = regular["current_week"]
+        default_type = "regular"
+    elif regular.get("weeks"):
+        default_week = regular["weeks"][0]
+        default_type = "regular"
+    else:
+        for candidate in ("post", "pre", "playin"):
+            weeks = summaries.get(candidate, {}).get("weeks") or []
+            if weeks:
+                default_week = weeks[0]
+                default_type = candidate
+                break
+    return summaries, week_to_type, schedules, default_week, default_type
 
-    payload = []
+
+def build_payload(events: Iterable[Any], week: int, season: int, season_type: str) -> List[Dict[str, Any]]:
+    payload: List[Dict[str, Any]] = []
     for event in events:
         try:
             event_dict = event.to_dict(load_play_by_play=False)
@@ -236,24 +397,86 @@ def main():
         competitions = event_dict.get("competitions") or []
         competition = competitions[0] if competitions else {}
         competitors = competition.get("competitors") or []
-        home = pick_competitor(competitors, "home")
-        away = pick_competitor(competitors, "away")
-        home_team = home.get("team") or {}
-        away_team = away.get("team") or {}
-        status = extract_status(competition.get("status"))
+        home_competitor = pick_competitor(competitors, "home")
+        away_competitor = pick_competitor(competitors, "away")
+        home_team = resolve_competitor_team(event, event_dict, home_competitor, "home_team")
+        away_team = resolve_competitor_team(event, event_dict, away_competitor, "away_team")
+        status_value = extract_status(competition.get("status"))
         game_id = getattr(event, "event_id", None) or event_dict.get("id")
-        payload.append({
+        entry = {
             "game_id": str(game_id) if game_id is not None else None,
             "week": week,
             "season": season,
-            "season_type": normalized_type,
+            "season_type": season_type,
             "date": event_dict.get("date"),
-            "status": status,
+            "status": status_value,
             "home_team": home_team,
             "away_team": away_team,
-        })
+        }
+        payload.append(entry)
+    return payload
 
-    print(json.dumps(payload, ensure_ascii=False))
+
+def main():
+    if len(sys.argv) < 4:
+        print(json.dumps({"entries": [], "meta": None}, ensure_ascii=False))
+        return
+    season_type = sys.argv[1]
+    normalized_type = normalize_season_type(season_type)
+    try:
+        season = int(sys.argv[2])
+        week = int(sys.argv[3])
+    except ValueError:
+        print(json.dumps({"entries": [], "meta": None}, ensure_ascii=False))
+        return
+    extra_args = sys.argv[4:]
+    force_refresh = False
+    for arg in extra_args:
+        lowered = arg.lower()
+        if lowered in {"--force", "force", "refresh", "--refresh", "true"}:
+            force_refresh = True
+    cache_key = f"{season}:{normalized_type}:{week}"
+    if not force_refresh:
+        cached = _read_cache(cache_key)
+        if cached is not None:
+            print(json.dumps(cached, ensure_ascii=False))
+            return
+    espn = PYESPN("nfl")
+    summaries, week_to_type, schedules, default_week, default_type = build_season_summary(espn, season)
+    resolved_type = normalized_type
+    if normalized_type == "regular":
+        resolved_type = week_to_type.get(str(week), normalized_type)
+    elif normalized_type not in {"pre", "post", "playin"}:
+        fallback_type = week_to_type.get(str(week))
+        if fallback_type in {"pre", "regular", "post", "playin"}:
+            resolved_type = fallback_type
+        else:
+            resolved_type = "regular"
+    schedule = schedules.get(resolved_type)
+    if schedule is None:
+        schedule = load_schedule(espn, resolved_type, season)
+    events: List[Any] = []
+    if schedule is not None:
+        try:
+            events = schedule.get_events(week_num=week)
+        except Exception:
+            events = []
+    entries = build_payload(events, week, season, resolved_type)
+    generated_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    meta = {
+        "season": season,
+        "requested_season_type": normalized_type,
+        "resolved_season_type": resolved_type,
+        "requested_week": week,
+        "default_week": default_week,
+        "default_season_type": default_type,
+        "season_types": list(summaries.values()),
+        "week_to_season_type": week_to_type,
+        "generated_at": generated_at,
+    }
+    response = {"entries": entries, "meta": meta}
+    _write_cache(cache_key, response)
+    print(json.dumps(response, ensure_ascii=False))
 
 
 if __name__ == "__main__":

@@ -96,7 +96,12 @@ describe('espn-api-server integration', () => {
   it('serves schedule, game, play-by-play, and player data via HTTP', async () => {
     const scheduleResponse = await fetch('http://127.0.0.1:3001/api/espn/schedule/regular/2025/7');
     expect(scheduleResponse.ok).toBe(true);
-    const schedule = (await scheduleResponse.json()) as Array<Record<string, unknown>>;
+    const scheduleEnvelope = (await scheduleResponse.json()) as
+      | Array<Record<string, unknown>>
+      | { entries?: Array<Record<string, unknown>> };
+    const schedule = Array.isArray(scheduleEnvelope)
+      ? scheduleEnvelope
+      : scheduleEnvelope.entries ?? [];
     expect(schedule[0]).toMatchObject({ game_id: '401770001' });
 
     const gameResponse = await fetch('http://127.0.0.1:3001/api/espn/game/401770001');
@@ -118,7 +123,12 @@ describe('espn-api-server integration', () => {
 
   it('respects cache until a force refresh bypasses it', async () => {
     const initialResponse = await fetch('http://127.0.0.1:3001/api/espn/schedule/regular/2025/7');
-    const initialSchedule = (await initialResponse.json()) as Array<Record<string, string>>;
+    const initialEnvelope = (await initialResponse.json()) as
+      | Array<Record<string, string>>
+      | { entries?: Array<Record<string, string>> };
+    const initialSchedule = Array.isArray(initialEnvelope)
+      ? initialEnvelope
+      : initialEnvelope.entries ?? [];
     expect(initialSchedule[0]?.status).toBe('in-progress');
 
     await updateFakeEvent('401770001', event => {
@@ -126,13 +136,23 @@ describe('espn-api-server integration', () => {
     });
 
     const cachedResponse = await fetch('http://127.0.0.1:3001/api/espn/schedule/regular/2025/7');
-    const cachedSchedule = (await cachedResponse.json()) as Array<Record<string, string>>;
+    const cachedEnvelope = (await cachedResponse.json()) as
+      | Array<Record<string, string>>
+      | { entries?: Array<Record<string, string>> };
+    const cachedSchedule = Array.isArray(cachedEnvelope)
+      ? cachedEnvelope
+      : cachedEnvelope.entries ?? [];
     expect(cachedSchedule[0]?.status).toBe('in-progress');
 
     const refreshedResponse = await fetch(
       'http://127.0.0.1:3001/api/espn/schedule/regular/2025/7?force=refresh',
     );
-    const refreshedSchedule = (await refreshedResponse.json()) as Array<Record<string, string>>;
+    const refreshedEnvelope = (await refreshedResponse.json()) as
+      | Array<Record<string, string>>
+      | { entries?: Array<Record<string, string>> };
+    const refreshedSchedule = Array.isArray(refreshedEnvelope)
+      ? refreshedEnvelope
+      : refreshedEnvelope.entries ?? [];
     expect(refreshedSchedule[0]?.status).toBe('post');
   }, 20000);
 });

@@ -164,6 +164,21 @@ describe('PyESPN end-to-end integration', () => {
     expect(refreshed[0]?.status_label).toBe('Final');
   }, 20000);
 
+  it('exposes season metadata and resolves season type automatically for alternate weeks', async () => {
+    const response = await fetchEspnSchedule('regular', 2025, 1, {
+      includeMeta: true,
+      forceRefresh: true,
+    });
+    expect(response.entries.length).toBeGreaterThan(0);
+    expect(response.entries[0]?.season_type).toBe('pre');
+    expect(response.meta?.resolved_season_type).toBe('pre');
+    expect(response.meta?.week_to_season_type?.['1']).toBe('pre');
+    const summaries = response.meta?.season_types ?? [];
+    const preseasonSummary = summaries.find(summary => summary.id === 'pre');
+    expect(preseasonSummary?.weeks).toContain(1);
+    expect(preseasonSummary?.label).toBe('Preseason');
+  }, 20000);
+
   it('normalizes combined game payloads via loadPyEspnGame', async () => {
     const result = await loadPyEspnGame({ gameId: '401770001', forceRefresh: true });
     expect(result).not.toBeNull();

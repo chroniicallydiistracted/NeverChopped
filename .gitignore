@@ -39,6 +39,7 @@ Thumbs.db
 
 # Python cache
 __pycache__/
+py/.cache/
 
 # Generated assets
 dist/

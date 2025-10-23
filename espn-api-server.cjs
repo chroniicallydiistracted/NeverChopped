@@ -88,10 +88,18 @@ router.get('/schedule/:seasonType/:season/:week', async (req, res) => {
       }
     }
     const script = path.join(process.cwd(), 'py/espn_schedule.py');
-    const raw = await runPy(script, [seasonType, season, week]);
-    const data = JSON.parse(raw || '[]');
-    scheduleCache.set(cacheKey, data);
-    res.json(data);
+    const args = [seasonType, season, week];
+    if (forceRefresh) {
+      args.push('--force');
+    }
+    const raw = await runPy(script, args);
+    const parsed = JSON.parse(raw || '{}');
+    const normalized =
+      parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? parsed
+        : { entries: Array.isArray(parsed) ? parsed : [], meta: null };
+    scheduleCache.set(cacheKey, normalized);
+    res.json(normalized);
   } catch (err) {
     console.error('Failed to fetch ESPN schedule', err);
     res.status(500).json({ error: 'Failed to fetch schedule from PyESPN' });
