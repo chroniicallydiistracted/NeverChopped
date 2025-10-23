@@ -1,5 +1,23 @@
 # Changelog
 
+# 2025-11-07
+- Reworked the PyESPN schedule loader to auto-detect the available API surface,
+  falling back to the core schedule fetcher when `PYESPN.load_season_schedule`
+  is absent so both the production library and the Vitest stub return
+  normalized preseason, regular, postseason, and play-in payloads.
+  【F:py/espn_schedule.py†L1-L147】
+- Updated the game and play-by-play scripts to rely on the documented
+  `Event.to_dict()` contract while normalizing drive and play collections into
+  JSON-safe dictionaries for the Node server.
+  【F:py/espn_game.py†L1-L21】【F:py/espn_pbp.py†L1-L36】
+- Pinned `pyespn>=0.3.3` to guarantee the documented 0.3.x API surface is
+  available across all environments.
+  【F:requirements.txt†L1-L9】
+- Outstanding follow-ups: failure-handling coverage for the SleeperFFHelper
+  auto-refresh loop remains outstanding; repository audit found no redundant
+  files to remove today.
+  【F:OUTSTANDING_TASKS.md†L11-L14】
+
 # 2025-11-06
 - Centralized the Python dependency manifest at the repository root, adding the
   Pillow and NumPy requirements alongside the existing PyESPN and tooling
