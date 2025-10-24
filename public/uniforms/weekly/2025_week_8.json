@@ -8,13 +8,21 @@
       "away": "MIN",
       "home": "LAC",
       "uniforms": {
+        "MIN": {
+          "year": "2025",
+          "style": "A2",
+          "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_MIN_A2.png"
+        },
         "LAC": {
           "year": "2025",
           "style": "J",
           "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_LAC_J.png"
         }
       },
-      "field": {}
+      "field": {
+        "team": "LAC",
+        "url": "http://gridiron-uniforms.com/fields/images/regular-season/LAC/r1024/LAC_2025^4.png"
+      }
     },
     {
       "game_id": "2025_BUF-CAR^8",
@@ -38,6 +46,11 @@
           "year": "2025",
           "style": "B",
           "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_CHI_B.png"
+        },
+        "BAL": {
+          "year": "2025",
+          "style": "I",
+          "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_BAL_I.png"
         }
       },
       "field": {}
@@ -79,6 +92,11 @@
       "away": "NYJ",
       "home": "CIN",
       "uniforms": {
+        "NYJ": {
+          "year": "2025",
+          "style": "A",
+          "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_NYJ_A.png"
+        },
         "CIN": {
           "year": "2025",
           "style": "H",
@@ -94,8 +112,8 @@
       "uniforms": {
         "SF": {
           "year": "2025",
-          "style": "A",
-          "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_SF_A.png"
+          "style": "A2",
+          "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_SF_A2.png"
         },
         "HOU": {
           "year": "2025",
@@ -109,7 +127,13 @@
       "game_id": "2025_TB-NO^8",
       "away": "TB",
       "home": "NO",
-      "uniforms": {},
+      "uniforms": {
+        "TB": {
+          "year": "2025",
+          "style": "B",
+          "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_TB_B.png"
+        }
+      },
       "field": {}
     },
     {
@@ -134,7 +158,13 @@
       "game_id": "2025_TEN-IND^8",
       "away": "TEN",
       "home": "IND",
-      "uniforms": {},
+      "uniforms": {
+        "TEN": {
+          "year": "2025",
+          "style": "C2",
+          "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_TEN_C2.png"
+        }
+      },
       "field": {}
     },
     {
@@ -142,6 +172,11 @@
       "away": "GB",
       "home": "PIT",
       "uniforms": {
+        "GB": {
+          "year": "2025",
+          "style": "B3",
+          "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_GB_B3.png"
+        },
         "PIT": {
           "year": "2025",
           "style": "H",
@@ -158,6 +193,6 @@
       "field": {}
     }
   ],
-  "scraped_at": "2025-10-22T16:06:20.993Z",
+  "scraped_at": "2025-10-23T18:40:53.308Z",
   "source": "https://www.gridiron-uniforms.com/GUD/controller/controller.php?action=weekly&week=8&year=2025"
 }

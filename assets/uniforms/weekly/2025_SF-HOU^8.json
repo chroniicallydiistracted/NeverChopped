@@ -7,8 +7,8 @@
   "uniforms": {
     "SF": {
       "year": "2025",
-      "style": "A",
-      "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_SF_A.png"
+      "style": "A2",
+      "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_SF_A2.png"
     },
     "HOU": {
       "year": "2025",
@@ -18,5 +18,5 @@
   },
   "field": {},
   "source": "https://www.gridiron-uniforms.com/GUD/controller/controller.php?action=high-res-weekly&game_id=2025_SF-HOU%5E8",
-  "scraped_at": "2025-10-22T16:06:19.436Z"
+  "scraped_at": "2025-10-23T18:40:51.690Z"
 }

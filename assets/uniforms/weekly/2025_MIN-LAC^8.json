@@ -5,13 +5,21 @@
   "away": "MIN",
   "home": "LAC",
   "uniforms": {
+    "MIN": {
+      "year": "2025",
+      "style": "A2",
+      "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_MIN_A2.png"
+    },
     "LAC": {
       "year": "2025",
       "style": "J",
       "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_LAC_J.png"
     }
   },
-  "field": {},
+  "field": {
+    "team": "LAC",
+    "url": "http://gridiron-uniforms.com/fields/images/regular-season/LAC/r1024/LAC_2025^4.png"
+  },
   "source": "https://www.gridiron-uniforms.com/GUD/controller/controller.php?action=high-res-weekly&game_id=2025_MIN-LAC%5E8",
-  "scraped_at": "2025-10-22T16:06:17.333Z"
+  "scraped_at": "2025-10-23T18:40:49.584Z"
 }

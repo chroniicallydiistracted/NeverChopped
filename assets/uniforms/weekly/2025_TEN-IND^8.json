@@ -4,8 +4,14 @@
   "week": "8",
   "away": "TEN",
   "home": "IND",
-  "uniforms": {},
+  "uniforms": {
+    "TEN": {
+      "year": "2025",
+      "style": "C2",
+      "url": "https://www.gridiron-uniforms.com/GUD/images/singles/hr/2025_TEN_C2.png"
+    }
+  },
   "field": {},
   "source": "https://www.gridiron-uniforms.com/GUD/controller/controller.php?action=high-res-weekly&game_id=2025_TEN-IND%5E8",
-  "scraped_at": "2025-10-22T16:06:20.329Z"
+  "scraped_at": "2025-10-23T18:40:52.614Z"
 }
